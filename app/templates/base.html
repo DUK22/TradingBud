@@ -30,10 +30,12 @@
       ('main.b3_integration','Integração B3','M13 10V3L4 14h7v7l9-11h-7'),
     ] %}
     <nav class="flex-1 space-y-1">
-      {% for endpoint,label,_ in nav %}
+      {% for endpoint,label,icon in nav %}
       <a href="{{ url_for(endpoint) }}"
          class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                 {{ 'bg-brand/15 text-brand' if request.endpoint==endpoint else 'text-slate-400 hover:bg-slate-800 hover:text-slate-200' }}">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2"
+             viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ icon }}"/></svg>
         {{ label }}
       </a>
       {% endfor %}
