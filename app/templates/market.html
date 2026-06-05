@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Mercado · IR Traders{% endblock %}
+{% block content %}
+<div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-white">Mercado</h1>
+    <p class="mt-1 text-sm text-slate-500">
+      Gráfico em tempo real — desenhe linhas, use indicadores e crie alarmes.
+    </p>
+  </div>
+  <form method="get" class="flex gap-2">
+    <input name="symbol" value="{{ symbol }}" placeholder="PETR4, WINFUT, BMFBOVESPA:VALE3…"
+           class="w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm uppercase text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none sm:w-72">
+    <button class="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">Abrir</button>
+  </form>
+</div>
+
+<!-- Atalhos -->
+<div class="mb-4 flex flex-wrap gap-2">
+  {% for sym, label in carteira %}
+    <a href="{{ url_for('main.market', symbol=sym) }}"
+       class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-300 hover:bg-emerald-400/20">★ {{ label }}</a>
+  {% endfor %}
+  {% for sym, label in favoritos %}
+    <a href="{{ url_for('main.market', symbol=sym) }}"
+       class="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-slate-400 hover:bg-white/[0.06] hover:text-slate-200">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div class="overflow-hidden rounded-xl border border-white/10 bg-slate-900/70 shadow-sm">
+  <div id="tv_chart" style="height:72vh;min-height:460px;width:100%"></div>
+</div>
+
+<p class="mt-3 text-xs leading-relaxed text-slate-600">
+  Cotações fornecidas pelo TradingView (algumas em tempo real, outras com atraso, conforme a bolsa).
+  Para salvar desenhos e receber <strong>alarmes</strong>, entre na sua conta TradingView pelo próprio gráfico.
+  Nada disto é recomendação de investimento.
+</p>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+  new TradingView.widget({
+    container_id: "tv_chart",
+    symbol: {{ symbol|tojson }},
+    interval: "D",
+    timezone: "America/Sao_Paulo",
+    theme: "dark",
+    style: "1",
+    locale: "br",
+    autosize: true,
+    hide_side_toolbar: false,     // mostra as ferramentas de desenho
+    allow_symbol_change: true,    // permite trocar de ativo dentro do gráfico
+    withdateranges: true,
+    details: true,
+    studies: ["Volume@tv-basicstudies"],
+    backgroundColor: "rgba(11,15,20,1)",
+    gridColor: "rgba(148,163,184,0.08)",
+  });
+</script>
+{% endblock %}

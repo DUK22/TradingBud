@@ -7,90 +7,219 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
   {% block head %}{% endblock %}
 </head>
-<body class="bg-slate-950 text-slate-200 min-h-screen">
+<body class="min-h-screen bg-[#0b0f14] text-slate-200">
 
 {% if current_user.is_authenticated %}
+{% set nav = [
+  ('main.dashboard','Dashboard','Visão geral','M3 12l2-2 4 4 8-8 2 2'),
+  ('main.market','Mercado','Gráfico ao vivo','M3 3v18h18M7 14l3-3 2 2 4-5'),
+  ('main.apuracao','Apuração','Impostos','M4 6h16M4 12h16M4 18h10'),
+  ('main.positions','Posições','Carteira','M5 13l4 4L19 7'),
+  ('main.notes','Notas','Corretagem','M7 8h10M7 12h6m-6 4h10'),
+  ('main.trades','Negócios','Operações','M3 17l6-6 4 4 7-7'),
+  ('main.upload','Importar','PDF/OCR','M12 4v12m0-12l-4 4m4-4l4 4'),
+  ('main.b3_integration','B3','Integração','M13 10V3L4 14h7v7l9-11h-7'),
+] %}
+{% set mobile_nav = [
+  ('main.dashboard','Início','M3 12l2-2 4 4 8-8 2 2'),
+  ('main.market','Mercado','M3 3v18h18M7 14l3-3 2 2 4-5'),
+  ('main.apuracao','IR','M4 6h16M4 12h16M4 18h10'),
+  ('main.notes','Notas','M7 8h10M7 12h6m-6 4h10'),
+  ('main.upload','Importar','M12 4v12m0-12l-4 4m4-4l4 4'),
+] %}
+{% set note_endpoints = ['main.notes', 'main.note_detail'] %}
+{% set trade_endpoints = ['main.trades', 'main.note_manual'] %}
+
 <div class="flex min-h-screen">
-  <!-- Sidebar -->
-  <aside class="hidden md:flex md:flex-col w-60 bg-slate-900 border-r border-slate-800 p-4 shrink-0">
-    <div class="flex items-center gap-2 mb-8 px-2">
-      <div class="w-9 h-9 rounded-lg bg-brand/20 flex items-center justify-center text-brand font-bold">IR</div>
-      <div>
-        <div class="font-semibold leading-tight">IR Traders</div>
-        <div class="text-xs text-slate-500">Renda Variável</div>
-      </div>
+  <aside class="hidden lg:flex lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:flex-col border-r border-white/10 bg-slate-950/85 px-4 py-5">
+    <a href="{{ url_for('main.dashboard') }}" class="flex items-center gap-3 px-2">
+      <span class="grid h-10 w-10 place-items-center rounded-lg bg-emerald-400 text-slate-950 font-black shadow-[0_0_28px_-10px_rgba(52,211,153,0.9)]">IR</span>
+      <span>
+        <span class="block text-sm font-semibold leading-tight text-white">IR Traders</span>
+        <span class="block text-xs text-slate-500">TradingBud</span>
+      </span>
+    </a>
+
+    <div class="mt-7 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+      <div class="text-[11px] uppercase tracking-wider text-slate-500">Conta ativa</div>
+      <div class="mt-1 truncate text-sm font-medium text-slate-200">{{ current_user.name }}</div>
+      <div class="truncate text-xs text-slate-500">{{ current_user.email }}</div>
     </div>
-    {% set nav = [
-      ('main.dashboard','Dashboard','M3 12l2-2 4 4 8-8 2 2'),
-      ('main.apuracao','Apuração mensal','M4 6h16M4 12h16M4 18h10'),
-      ('main.positions','Posições','M5 13l4 4L19 7'),
-      ('main.notes','Notas','M7 8h10M7 12h6m-6 4h10'),
-      ('main.trades','Negócios','M3 17l6-6 4 4 7-7'),
-      ('main.upload','Importar nota','M12 4v12m0-12l-4 4m4-4l4 4'),
-      ('main.b3_integration','Integração B3','M13 10V3L4 14h7v7l9-11h-7'),
-    ] %}
-    <nav class="flex-1 space-y-1">
-      {% for endpoint,label,icon in nav %}
-      <a href="{{ url_for(endpoint) }}"
-         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
-                {{ 'bg-brand/15 text-brand' if request.endpoint==endpoint else 'text-slate-400 hover:bg-slate-800 hover:text-slate-200' }}">
-        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2"
-             viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ icon }}"/></svg>
-        {{ label }}
-      </a>
+
+    <nav class="mt-6 flex-1 space-y-1">
+      <div class="px-3 pb-2 text-[11px] uppercase tracking-wider text-slate-600">Menu</div>
+      {% for endpoint,label,desc,icon in nav %}
+        {% set is_active = request.endpoint == endpoint
+          or (endpoint == 'main.notes' and request.endpoint in note_endpoints)
+          or (endpoint == 'main.trades' and request.endpoint in trade_endpoints) %}
+        <a href="{{ url_for(endpoint) }}"
+           class="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition
+                  {{ 'bg-emerald-400/12 text-emerald-300 ring-1 ring-emerald-400/20' if is_active else 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-100' }}">
+          <svg class="h-5 w-5 shrink-0 {{ 'text-emerald-300' if is_active else 'text-slate-500 group-hover:text-slate-300' }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="{{ icon }}"/>
+          </svg>
+          <span class="min-w-0">
+            <span class="block leading-tight">{{ label }}</span>
+            <span class="block truncate text-xs leading-tight {{ 'text-emerald-200/60' if is_active else 'text-slate-600 group-hover:text-slate-500' }}">{{ desc }}</span>
+          </span>
+        </a>
       {% endfor %}
     </nav>
-    <div class="border-t border-slate-800 pt-3 mt-3">
-      <div class="text-sm text-slate-300 px-3 truncate">{{ current_user.name }}</div>
-      <div class="text-xs text-slate-500 px-3 truncate mb-2">{{ current_user.email }}</div>
-      <a href="{{ url_for('main.account') }}" class="block px-3 py-2 text-sm text-slate-400 hover:text-slate-200">Minha conta</a>
-      <a href="{{ url_for('auth.logout') }}" class="block px-3 py-2 text-sm text-slate-400 hover:text-red-400">Sair</a>
+
+    <div class="space-y-1 border-t border-white/10 pt-4">
+      <a href="{{ url_for('main.account') }}"
+         class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-white/[0.04] hover:text-slate-100">
+        <svg class="h-5 w-5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM4 21a8 8 0 1116 0"/></svg>
+        Minha conta
+      </a>
+      <a href="{{ url_for('auth.logout') }}"
+         class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-red-500/10 hover:text-red-300">
+        <svg class="h-5 w-5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12H3m6-6l-6 6 6 6m4-14h4a2 2 0 012 2v12a2 2 0 01-2 2h-4"/></svg>
+        Sair
+      </a>
     </div>
   </aside>
 
-  <!-- Main -->
-  <main class="flex-1 min-w-0">
-    <!-- Topbar mobile -->
-    <div class="md:hidden flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900">
-      <span class="font-semibold">IR Traders</span>
-      <a href="{{ url_for('auth.logout') }}" class="text-sm text-slate-400">Sair</a>
+  <main class="min-w-0 flex-1">
+    <header class="sticky top-0 z-30 border-b border-white/10 bg-[#0b0f14]/92 backdrop-blur lg:hidden">
+      <div class="flex h-16 items-center justify-between px-4">
+        <a href="{{ url_for('main.dashboard') }}" class="flex items-center gap-2">
+          <span class="grid h-9 w-9 place-items-center rounded-lg bg-emerald-400 text-slate-950 text-sm font-black">IR</span>
+          <span>
+            <span class="block text-sm font-semibold leading-tight">IR Traders</span>
+            <span class="block text-[11px] text-slate-500">TradingBud</span>
+          </span>
+        </a>
+        <button type="button" id="mobile-menu-open"
+                class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-slate-300"
+                aria-label="Abrir menu" aria-controls="mobile-menu-panel" aria-expanded="false">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div id="mobile-menu" class="fixed inset-0 z-40 hidden lg:hidden" aria-hidden="true">
+      <button type="button" id="mobile-menu-backdrop" class="absolute inset-0 bg-black/60" aria-label="Fechar menu"></button>
+      <aside id="mobile-menu-panel" class="absolute right-0 top-0 flex h-full w-[86vw] max-w-sm translate-x-full flex-col border-l border-white/10 bg-slate-950 p-4 shadow-2xl transition-transform duration-200">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="grid h-10 w-10 place-items-center rounded-lg bg-emerald-400 text-slate-950 font-black">IR</span>
+            <div>
+              <div class="text-sm font-semibold">IR Traders</div>
+              <div class="text-xs text-slate-500">{{ current_user.name }}</div>
+            </div>
+          </div>
+          <button type="button" id="mobile-menu-close" class="grid h-10 w-10 place-items-center rounded-lg border border-white/10 text-slate-400" aria-label="Fechar menu">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <nav class="mt-6 space-y-1">
+          {% for endpoint,label,desc,icon in nav %}
+            {% set is_active = request.endpoint == endpoint
+              or (endpoint == 'main.notes' and request.endpoint in note_endpoints)
+              or (endpoint == 'main.trades' and request.endpoint in trade_endpoints) %}
+            <a href="{{ url_for(endpoint) }}"
+               class="flex items-center gap-3 rounded-lg px-3 py-3 text-sm
+                      {{ 'bg-emerald-400/12 text-emerald-300 ring-1 ring-emerald-400/20' if is_active else 'text-slate-300 hover:bg-white/[0.04]' }}">
+              <svg class="h-5 w-5 shrink-0 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="{{ icon }}"/></svg>
+              <span>
+                <span class="block leading-tight">{{ label }}</span>
+                <span class="block text-xs text-slate-500">{{ desc }}</span>
+              </span>
+            </a>
+          {% endfor %}
+        </nav>
+
+        <div class="mt-auto border-t border-white/10 pt-4 text-sm">
+          <a href="{{ url_for('main.account') }}" class="block rounded-lg px-3 py-2 text-slate-400 hover:bg-white/[0.04] hover:text-slate-100">Minha conta</a>
+          <a href="{{ url_for('auth.logout') }}" class="block rounded-lg px-3 py-2 text-slate-400 hover:bg-red-500/10 hover:text-red-300">Sair</a>
+        </div>
+      </aside>
     </div>
 
-    <div class="p-5 md:p-8 max-w-7xl mx-auto">
+    <div class="mx-auto w-full max-w-7xl px-4 py-5 pb-24 sm:px-6 lg:px-8 lg:py-8 lg:pb-10">
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% for cat,msg in messages %}
           {% set color = {'success':'emerald','error':'red','warning':'amber','info':'sky'}.get(cat,'slate') %}
-          <div class="mb-3 px-4 py-3 rounded-lg border text-sm
+          <div class="mb-3 rounded-lg border px-4 py-3 text-sm shadow-sm
                       bg-{{color}}-500/10 border-{{color}}-500/30 text-{{color}}-300">{{ msg }}</div>
         {% endfor %}
       {% endwith %}
 
       {% block content %}{% endblock %}
 
-      <footer class="mt-12 pt-6 border-t border-slate-800 text-xs text-slate-600">
+      <footer class="mt-12 border-t border-white/10 pt-6 text-xs leading-relaxed text-slate-600">
         Ferramenta de apoio à organização fiscal. <span class="text-slate-500">Não constitui
         aconselhamento contábil ou tributário</span> — confira os cálculos com seu contador.
       </footer>
     </div>
   </main>
 </div>
+
+<nav class="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-slate-950/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur lg:hidden">
+  <div class="mx-auto grid max-w-md grid-cols-5 gap-1">
+    {% for endpoint,label,icon in mobile_nav %}
+      {% set is_active = request.endpoint == endpoint
+        or (endpoint == 'main.notes' and request.endpoint in note_endpoints) %}
+      <a href="{{ url_for(endpoint) }}"
+         class="flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-[11px]
+                {{ 'bg-emerald-400/12 text-emerald-300' if is_active else 'text-slate-500' }}">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="{{ icon }}"/></svg>
+        <span>{{ label }}</span>
+      </a>
+    {% endfor %}
+  </div>
+</nav>
 {% else %}
-  <div class="min-h-screen flex items-center justify-center p-4">
+  <div class="min-h-screen px-4 py-8">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-      <div class="fixed top-4 inset-x-0 flex flex-col items-center gap-2 px-4">
+      <div class="fixed top-4 inset-x-0 z-20 flex flex-col items-center gap-2 px-4">
         {% for cat,msg in messages %}
           {% set color = {'success':'emerald','error':'red','warning':'amber','info':'sky'}.get(cat,'slate') %}
-          <div class="px-4 py-3 rounded-lg border text-sm w-full max-w-md
+          <div class="w-full max-w-md rounded-lg border px-4 py-3 text-sm shadow-sm
                       bg-{{color}}-500/10 border-{{color}}-500/30 text-{{color}}-300">{{ msg }}</div>
         {% endfor %}
       </div>
       {% endif %}
     {% endwith %}
-    {% block auth_content %}{% endblock %}
+    <div class="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-5xl items-center justify-center">
+      {% block auth_content %}{% endblock %}
+    </div>
   </div>
 {% endif %}
 
+<script>
+  (() => {
+    const shell = document.getElementById('mobile-menu');
+    const panel = document.getElementById('mobile-menu-panel');
+    const openBtn = document.getElementById('mobile-menu-open');
+    const closeBtn = document.getElementById('mobile-menu-close');
+    const backdrop = document.getElementById('mobile-menu-backdrop');
+    if (!shell || !panel || !openBtn) return;
+
+    const open = () => {
+      shell.classList.remove('hidden');
+      shell.setAttribute('aria-hidden', 'false');
+      openBtn.setAttribute('aria-expanded', 'true');
+      requestAnimationFrame(() => panel.classList.remove('translate-x-full'));
+    };
+    const close = () => {
+      panel.classList.add('translate-x-full');
+      shell.setAttribute('aria-hidden', 'true');
+      openBtn.setAttribute('aria-expanded', 'false');
+      window.setTimeout(() => shell.classList.add('hidden'), 180);
+    };
+
+    openBtn.addEventListener('click', open);
+    closeBtn?.addEventListener('click', close);
+    backdrop?.addEventListener('click', close);
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !shell.classList.contains('hidden')) close();
+    });
+  })();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

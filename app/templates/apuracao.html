@@ -1,18 +1,21 @@
 {% extends "base.html" %}
 {% block title %}Apuração mensal · IR Traders{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-1">Apuração mensal</h1>
-<p class="text-slate-500 text-sm mb-6">
-  Swing 15% · Day Trade 20% · isenção de {{ 20000|brl }}/mês para vendas à vista de ações (swing).
-  Prejuízos compensam apenas dentro da mesma modalidade.
-</p>
+<div class="mb-6">
+  <h1 class="text-2xl font-semibold tracking-tight text-white">Apuração mensal</h1>
+  <p class="mt-1 max-w-3xl text-sm text-slate-500">
+    Swing 15% · Day Trade 20% · isenção de {{ 20000|brl }}/mês para vendas à vista de ações.
+  </p>
+</div>
 
 {% if not months %}
-<p class="text-slate-500">Sem operações para apurar.</p>
+<div class="rounded-lg border border-dashed border-white/10 bg-slate-900/50 p-8 text-center text-sm text-slate-500">
+  Sem operações para apurar.
+</div>
 {% else %}
-<div class="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-  <table class="w-full text-sm whitespace-nowrap tabular-nums">
-    <thead class="bg-slate-800/50 text-slate-400 text-left">
+<div class="hidden overflow-x-auto rounded-lg border border-white/10 bg-slate-900/70 shadow-sm md:block">
+  <table class="w-full whitespace-nowrap text-sm tabular-nums">
+    <thead class="border-b border-white/10 bg-white/[0.03] text-left text-xs uppercase tracking-wider text-slate-500">
       <tr>
         <th class="px-3 py-3">Mês</th>
         <th class="px-3 py-3 text-right">Day result.</th>
@@ -26,25 +29,25 @@
         <th class="px-3 py-3 text-right">PDF</th>
       </tr>
     </thead>
-    <tbody class="divide-y divide-slate-800">
+    <tbody class="divide-y divide-white/10">
       {% for m in months %}
-      <tr class="hover:bg-slate-800/30">
-        <td class="px-3 py-3 font-medium">{{ m.month|mes }}/{{ m.year }}</td>
-        <td class="px-3 py-3 text-right {{ 'text-emerald-400' if m.day_result>=0 else 'text-red-400' }}">{{ m.day_result|brl }}</td>
-        <td class="px-3 py-3 text-right {{ 'text-emerald-400' if m.swing_result>=0 else 'text-red-400' }}">{{ m.swing_result|brl }}</td>
-        <td class="px-3 py-3 text-right text-slate-400">{{ m.exempt_result|brl }}</td>
-        <td class="px-3 py-3 text-right text-slate-400">{{ (m.day_loss_used + m.swing_loss_used)|brl }}</td>
-        <td class="px-3 py-3 text-right">{{ (m.day_taxable_base + m.swing_taxable_base)|brl }}</td>
+      <tr class="hover:bg-white/[0.03]">
+        <td class="px-3 py-3 font-medium text-white">{{ m.month|mes }}/{{ m.year }}</td>
+        <td class="px-3 py-3 text-right {{ 'text-emerald-300' if m.day_result>=0 else 'text-red-300' }}">{{ m.day_result|brl }}</td>
+        <td class="px-3 py-3 text-right {{ 'text-emerald-300' if m.swing_result>=0 else 'text-red-300' }}">{{ m.swing_result|brl }}</td>
+        <td class="px-3 py-3 text-right text-slate-500">{{ m.exempt_result|brl }}</td>
+        <td class="px-3 py-3 text-right text-slate-500">{{ (m.day_loss_used + m.swing_loss_used)|brl }}</td>
+        <td class="px-3 py-3 text-right text-slate-200">{{ (m.day_taxable_base + m.swing_taxable_base)|brl }}</td>
         <td class="px-3 py-3 text-right text-amber-300">{{ m.total_tax|brl }}</td>
-        <td class="px-3 py-3 text-right text-slate-400">{{ (m.irrf_day + m.irrf_swing)|brl }}</td>
-        <td class="px-3 py-3 text-right font-semibold">
+        <td class="px-3 py-3 text-right text-slate-500">{{ (m.irrf_day + m.irrf_swing)|brl }}</td>
+        <td class="px-3 py-3 text-right font-semibold text-white">
           {{ m.darf|brl }}
-          {% if m.darf_below_min %}<span class="block text-[10px] text-amber-500">&lt; mínimo, acumula</span>{% endif %}
+          {% if m.darf_below_min %}<span class="block text-[10px] text-amber-400">&lt; mínimo</span>{% endif %}
         </td>
         <td class="px-3 py-3 text-right">
           <a href="{{ url_for('main.darf_pdf_download', year=m.year, month=m.month) }}"
-             class="inline-flex items-center gap-1 text-xs text-brand hover:underline" title="Baixar DARF (demonstrativo)">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+             class="inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200" title="Baixar DARF (demonstrativo)">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
             DARF
           </a>
         </td>
@@ -54,25 +57,64 @@
   </table>
 </div>
 
-<div class="grid sm:grid-cols-3 gap-4 mt-6">
-  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-    <div class="text-xs text-slate-500 uppercase">Prejuízo Swing a compensar</div>
-    <div class="text-xl font-semibold mt-1">{{ result.final_swing_loss|brl }}</div>
+<div class="space-y-3 md:hidden">
+  {% for m in months %}
+  <div class="rounded-lg border border-white/10 bg-slate-900/70 p-4 shadow-sm">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <div class="font-semibold text-white">{{ m.month|mes }}/{{ m.year }}</div>
+        <div class="mt-1 text-xs text-slate-500">Base tributável {{ (m.day_taxable_base + m.swing_taxable_base)|brl }}</div>
+      </div>
+      <div class="text-right">
+        <div class="text-xs text-slate-500">DARF</div>
+        <div class="mt-1 font-semibold tabular-nums text-amber-300">{{ m.darf|brl }}</div>
+        {% if m.darf_below_min %}<div class="text-[10px] text-amber-400">&lt; mínimo</div>{% endif %}
+      </div>
+    </div>
+    <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+      <div>
+        <div class="text-xs text-slate-500">Day</div>
+        <div class="mt-1 tabular-nums {{ 'text-emerald-300' if m.day_result>=0 else 'text-red-300' }}">{{ m.day_result|brl }}</div>
+      </div>
+      <div class="text-right">
+        <div class="text-xs text-slate-500">Swing</div>
+        <div class="mt-1 tabular-nums {{ 'text-emerald-300' if m.swing_result>=0 else 'text-red-300' }}">{{ m.swing_result|brl }}</div>
+      </div>
+      <div>
+        <div class="text-xs text-slate-500">Imposto</div>
+        <div class="mt-1 tabular-nums text-amber-300">{{ m.total_tax|brl }}</div>
+      </div>
+      <div class="text-right">
+        <div class="text-xs text-slate-500">IRRF</div>
+        <div class="mt-1 tabular-nums text-slate-400">{{ (m.irrf_day + m.irrf_swing)|brl }}</div>
+      </div>
+    </div>
+    <a href="{{ url_for('main.darf_pdf_download', year=m.year, month=m.month) }}"
+       class="mt-4 inline-flex w-full items-center justify-center rounded-lg border border-white/10 px-3 py-2 text-sm font-medium text-emerald-300">
+      Baixar DARF
+    </a>
   </div>
-  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-    <div class="text-xs text-slate-500 uppercase">Prejuízo Day Trade a compensar</div>
-    <div class="text-xl font-semibold mt-1">{{ result.final_day_loss|brl }}</div>
+  {% endfor %}
+</div>
+
+<div class="mt-5 grid gap-3 sm:grid-cols-3">
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Prejuízo Swing</div>
+    <div class="mt-1 text-xl font-semibold tabular-nums text-white">{{ result.final_swing_loss|brl }}</div>
   </div>
-  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-    <div class="text-xs text-slate-500 uppercase">Código DARF</div>
-    <div class="text-xl font-semibold mt-1">{{ darf_codigo }}</div>
-    <div class="text-xs text-slate-500 mt-1">venc.: último dia útil do mês seguinte</div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Prejuízo Day Trade</div>
+    <div class="mt-1 text-xl font-semibold tabular-nums text-white">{{ result.final_day_loss|brl }}</div>
+  </div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Código DARF</div>
+    <div class="mt-1 text-xl font-semibold text-white">{{ darf_codigo }}</div>
+    <div class="mt-1 text-xs text-slate-500">Venc.: último dia útil do mês seguinte</div>
   </div>
 </div>
 
-<p class="text-xs text-slate-600 mt-4">
-  DARF abaixo de {{ darf_min|brl }} não é recolhido isoladamente — acumula-se para um mês
-  seguinte até atingir o mínimo. IRRF retido (1% day / 0,005% swing) é deduzido do imposto devido.
+<p class="mt-4 text-xs leading-relaxed text-slate-600">
+  DARF abaixo de {{ darf_min|brl }} não é recolhido isoladamente; o valor acumula para um mês seguinte até atingir o mínimo.
 </p>
 {% endif %}
 {% endblock %}

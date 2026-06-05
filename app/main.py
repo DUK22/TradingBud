@@ -1,6 +1,7 @@
 """Blueprint principal: dashboard, upload/OCR, notas, apuração, posições, B3."""
 import json
 import os
+from collections import defaultdict
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 
@@ -100,6 +101,15 @@ def dashboard():
         serie_acc.append(round(acc, 2))
     chart["acc"] = serie_acc
 
+    asset_results = defaultdict(Decimal)
+    for r in result.day_results:
+        asset_results[r.asset] += r.net_result
+    for s in result.swing_sales:
+        asset_results[s.asset] += s.result
+    top_assets = sorted(asset_results.items(), key=lambda item: abs(item[1]), reverse=True)[:8]
+    chart["asset_labels"] = [asset for asset, _ in top_assets]
+    chart["asset_results"] = [float(value) for _, value in top_assets]
+
     # Métricas de performance (cada fechamento = um day trade ou uma venda swing)
     closed = ([r.net_result for r in result.day_results]
               + [s.result for s in result.swing_sales])
@@ -125,6 +135,26 @@ def dashboard():
         ano=ano, chart=chart, n_notas=len(notes),
         metrics=metrics, isencao=isencao,
     )
+
+
+# --------------------------------------------------------------------------- #
+# Mercado — gráfico em tempo real (widget TradingView)
+# --------------------------------------------------------------------------- #
+@main_bp.route("/mercado")
+@login_required
+def market():
+    symbol = (request.args.get("symbol") or "").upper().strip() or "BMFBOVESPA:PETR4"
+    # Ativos em carteira viram atalhos rápidos (prefixo da bolsa para o widget).
+    result = tax_engine.compute(_user_notes())
+    carteira = [("BMFBOVESPA:" + p.asset, p.asset) for p in result.positions]
+    favoritos = [
+        ("BMFBOVESPA:IBOV", "IBOV"), ("BMFBOVESPA:PETR4", "PETR4"),
+        ("BMFBOVESPA:VALE3", "VALE3"), ("BMFBOVESPA:ITUB4", "ITUB4"),
+        ("BMFBOVESPA:WIN1!", "WIN (mini índice)"),
+        ("BMFBOVESPA:WDO1!", "WDO (mini dólar)"),
+    ]
+    return render_template("market.html", symbol=symbol,
+                           carteira=carteira, favoritos=favoritos)
 
 
 # --------------------------------------------------------------------------- #

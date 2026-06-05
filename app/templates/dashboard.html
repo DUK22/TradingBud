@@ -2,133 +2,187 @@
 {% block title %}Dashboard · IR Traders{% endblock %}
 {% block content %}
 
-<div class="flex items-center justify-between mb-6">
+<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
   <div>
-    <h1 class="text-2xl font-semibold">Dashboard</h1>
-    <p class="text-slate-500 text-sm">Performance e impostos — {{ ano }}</p>
+    <div class="text-xs font-medium uppercase tracking-wider text-emerald-300/80">Ano fiscal {{ ano }}</div>
+    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Dashboard</h1>
+    <p class="mt-1 text-sm text-slate-500">Performance, impostos e posição consolidada.</p>
   </div>
-  <a href="{{ url_for('main.upload') }}"
-     class="bg-brand hover:bg-brand-dark text-slate-950 font-semibold rounded-lg px-4 py-2 text-sm transition">+ Importar nota</a>
+  <div class="flex gap-2">
+    <a href="{{ url_for('main.note_manual') }}"
+       class="inline-flex items-center justify-center rounded-lg border border-white/10 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/[0.04]">
+      Manual
+    </a>
+    <a href="{{ url_for('main.upload') }}"
+       class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-400 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0-12l-4 4m4-4l4 4M4 20h16"/></svg>
+      Importar
+    </a>
+  </div>
 </div>
 
 {% if n_notas == 0 %}
-<div class="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
-  <p class="text-slate-300 mb-2">Nenhuma nota importada ainda.</p>
-  <p class="text-slate-500 text-sm mb-4">Importe uma nota de corretagem (PDF) ou lance um negócio manualmente para ver sua apuração.</p>
-  <div class="flex gap-3 justify-center">
-    <a href="{{ url_for('main.upload') }}" class="bg-brand text-slate-950 font-semibold rounded-lg px-4 py-2 text-sm">Importar nota PDF</a>
-    <a href="{{ url_for('main.note_manual') }}" class="border border-slate-700 rounded-lg px-4 py-2 text-sm hover:bg-slate-800">Lançar manual</a>
+<div class="rounded-lg border border-white/10 bg-slate-900/70 p-8 text-center shadow-sm">
+  <div class="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-emerald-400/12 text-emerald-300">
+    <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h6m-6 4h10"/></svg>
+  </div>
+  <p class="mt-4 text-slate-200">Nenhuma nota importada ainda.</p>
+  <p class="mx-auto mt-1 max-w-md text-sm text-slate-500">Importe uma nota de corretagem ou lance um negócio manualmente para montar a apuração.</p>
+  <div class="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
+    <a href="{{ url_for('main.upload') }}" class="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950">Importar nota PDF</a>
+    <a href="{{ url_for('main.note_manual') }}" class="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/[0.04]">Lançar manual</a>
   </div>
 </div>
 {% else %}
 
-<!-- Cards -->
 {% set rm = cur.total_result if cur else 0 %}
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-  <div class="relative bg-slate-900 border border-slate-800 rounded-xl p-5 overflow-hidden">
-    <div class="absolute inset-y-0 left-0 w-1 bg-sky-500/70"></div>
-    <div class="text-xs text-slate-500 uppercase tracking-wide">Patrimônio em aberto</div>
-    <div class="text-2xl font-semibold mt-1 tabular-nums">{{ patrimonio|brl }}</div>
-    <div class="text-xs text-slate-500 mt-1">custo médio das posições</div>
-  </div>
-  <div class="relative bg-slate-900 border rounded-xl p-5 overflow-hidden
-              {{ 'border-emerald-500/30 shadow-[0_0_24px_-8px_rgba(16,185,129,0.5)]' if rm>=0 else 'border-red-500/30 shadow-[0_0_24px_-8px_rgba(239,68,68,0.5)]' }}">
-    <div class="absolute inset-y-0 left-0 w-1 {{ 'bg-emerald-500/80' if rm>=0 else 'bg-red-500/80' }}"></div>
-    <div class="text-xs text-slate-500 uppercase tracking-wide">Resultado do mês</div>
-    <div class="text-2xl font-semibold mt-1 tabular-nums {{ 'text-emerald-400' if rm>=0 else 'text-red-400' }}">{{ rm|brl }}</div>
-    <div class="text-xs text-slate-500 mt-1">
-      {% if cur %}Day {{ cur.day_result|brl }} · Swing {{ cur.swing_result|brl }}{% else %}sem operações este mês{% endif %}
+{% set loss_total = result.final_swing_loss + result.final_day_loss %}
+<div class="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+  <div class="rounded-lg border border-white/10 bg-slate-900/70 p-4 shadow-sm">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <div class="text-xs uppercase tracking-wider text-slate-500">Patrimônio aberto</div>
+        <div class="mt-2 text-2xl font-semibold tabular-nums text-white">{{ patrimonio|brl }}</div>
+      </div>
+      <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-sky-400/10 text-sky-300">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+      </span>
     </div>
-    <div class="mt-2 h-8"><canvas id="sparkResult"></canvas></div>
+    <div class="mt-3 text-xs text-slate-500">Custo médio das posições em aberto</div>
   </div>
-  <div class="relative bg-slate-900 border border-slate-800 rounded-xl p-5 overflow-hidden">
-    <div class="absolute inset-y-0 left-0 w-1 bg-amber-400/80"></div>
-    <div class="text-xs text-slate-500 uppercase tracking-wide">DARF do mês</div>
-    <div class="text-2xl font-semibold mt-1 tabular-nums text-amber-300">{{ (cur.darf if cur else 0)|brl }}</div>
-    <div class="text-xs text-slate-500 mt-1">imposto a pagar (líq. de IRRF)</div>
-    <div class="mt-2 h-8"><canvas id="sparkTax"></canvas></div>
+
+  <div class="rounded-lg border {{ 'border-emerald-400/25' if rm>=0 else 'border-red-400/25' }} bg-slate-900/70 p-4 shadow-sm">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <div class="text-xs uppercase tracking-wider text-slate-500">Resultado do mês</div>
+        <div class="mt-2 text-2xl font-semibold tabular-nums {{ 'text-emerald-300' if rm>=0 else 'text-red-300' }}">{{ rm|brl }}</div>
+      </div>
+      <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg {{ 'bg-emerald-400/10 text-emerald-300' if rm>=0 else 'bg-red-400/10 text-red-300' }}">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l5-5 4 4 7-7"/></svg>
+      </span>
+    </div>
+    <div class="mt-3 h-9"><canvas id="sparkResult"></canvas></div>
   </div>
-  <div class="relative bg-slate-900 border border-slate-800 rounded-xl p-5 overflow-hidden">
-    <div class="absolute inset-y-0 left-0 w-1 bg-slate-500/70"></div>
-    <div class="text-xs text-slate-500 uppercase tracking-wide">Prejuízo a compensar</div>
-    <div class="text-2xl font-semibold mt-1 tabular-nums text-slate-200">{{ (result.final_swing_loss + result.final_day_loss)|brl }}</div>
-    <div class="text-xs text-slate-500 mt-1">Swing {{ result.final_swing_loss|brl }} · Day {{ result.final_day_loss|brl }}</div>
+
+  <div class="rounded-lg border border-amber-400/20 bg-slate-900/70 p-4 shadow-sm">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <div class="text-xs uppercase tracking-wider text-slate-500">DARF do mês</div>
+        <div class="mt-2 text-2xl font-semibold tabular-nums text-amber-300">{{ (cur.darf if cur else 0)|brl }}</div>
+      </div>
+      <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-amber-400/10 text-amber-300">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l2 2 4-4M7 4h10l1 18-6-3-6 3 1-18z"/></svg>
+      </span>
+    </div>
+    <div class="mt-3 h-9"><canvas id="sparkTax"></canvas></div>
+  </div>
+
+  <div class="rounded-lg border border-white/10 bg-slate-900/70 p-4 shadow-sm">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <div class="text-xs uppercase tracking-wider text-slate-500">Prejuízo a compensar</div>
+        <div class="mt-2 text-2xl font-semibold tabular-nums text-white">{{ loss_total|brl }}</div>
+      </div>
+      <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-violet-400/10 text-violet-300">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19V5m0 14h17M8 16V9m4 7V7m4 9v-4"/></svg>
+      </span>
+    </div>
+    <div class="mt-3 text-xs text-slate-500">Swing {{ result.final_swing_loss|brl }} · Day {{ result.final_day_loss|brl }}</div>
   </div>
 </div>
 
-<!-- Métricas de performance -->
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-  <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-    <div class="text-xs text-slate-500 uppercase tracking-wide">Operações</div>
-    <div class="text-xl font-semibold mt-1 tabular-nums">{{ metrics.n_ops }}</div>
-    <div class="text-xs text-slate-500">fechamentos apurados</div>
+<div class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Operações</div>
+    <div class="mt-1 text-xl font-semibold tabular-nums">{{ metrics.n_ops }}</div>
   </div>
-  <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-    <div class="text-xs text-slate-500 uppercase tracking-wide">Taxa de acerto</div>
-    <div class="text-xl font-semibold mt-1 tabular-nums {{ 'text-emerald-400' if metrics.win_rate>=50 else 'text-slate-200' }}">{{ metrics.win_rate|pct }}</div>
-    <div class="text-xs text-slate-500">{{ metrics.wins }} de {{ metrics.n_ops }} no lucro</div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Taxa de acerto</div>
+    <div class="mt-1 text-xl font-semibold tabular-nums {{ 'text-emerald-300' if metrics.win_rate>=50 else 'text-slate-200' }}">{{ metrics.win_rate|pct }}</div>
   </div>
-  <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-    <div class="text-xs text-slate-500 uppercase tracking-wide">Melhor resultado</div>
-    <div class="text-xl font-semibold mt-1 tabular-nums text-emerald-400">{{ metrics.melhor|brl }}</div>
-    <div class="text-xs text-slate-500">num único fechamento</div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Melhor</div>
+    <div class="mt-1 text-xl font-semibold tabular-nums text-emerald-300">{{ metrics.melhor|brl }}</div>
   </div>
-  <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-    <div class="text-xs text-slate-500 uppercase tracking-wide">Pior resultado</div>
-    <div class="text-xl font-semibold mt-1 tabular-nums {{ 'text-red-400' if metrics.pior<0 else 'text-slate-200' }}">{{ metrics.pior|brl }}</div>
-    <div class="text-xs text-slate-500">num único fechamento</div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Pior</div>
+    <div class="mt-1 text-xl font-semibold tabular-nums {{ 'text-red-300' if metrics.pior<0 else 'text-slate-200' }}">{{ metrics.pior|brl }}</div>
   </div>
 </div>
 
-<!-- Barra de isenção mensal de R$20k -->
 {% set pct = (isencao.usado / isencao.limite * 100) if isencao.limite else 0 %}
 {% set excedeu = isencao.usado > isencao.limite %}
-<div class="bg-slate-900 border border-slate-800 rounded-xl p-5 mb-6">
-  <div class="flex items-center justify-between mb-2">
-    <div class="text-sm font-medium">Isenção do mês — vendas à vista de ações</div>
+<div class="mb-5 rounded-lg border border-white/10 bg-slate-900/70 p-4 shadow-sm">
+  <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+    <div class="text-sm font-medium text-slate-200">Isenção mensal de ações à vista</div>
     <div class="text-xs tabular-nums {{ 'text-amber-300' if excedeu else 'text-slate-400' }}">{{ isencao.usado|brl }} de {{ isencao.limite|brl }}</div>
   </div>
-  <div class="h-2.5 w-full rounded-full bg-slate-800 overflow-hidden">
-    <div class="h-full rounded-full {{ 'bg-amber-400' if excedeu else 'bg-emerald-500' }}" style="width: {{ [pct, 100]|min }}%"></div>
+  <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-800">
+    <div class="h-full rounded-full {{ 'bg-amber-300' if excedeu else 'bg-emerald-400' }}" style="width: {{ [pct, 100]|min }}%"></div>
   </div>
-  <div class="text-xs text-slate-500 mt-2">
-    {% if excedeu %}Limite ultrapassado: as vendas de ações à vista deste mês passam a ser tributadas (15%).
-    {% else %}Enquanto as vendas somarem até {{ isencao.limite|brl }} no mês, o lucro com ações à vista fica isento.{% endif %}
-  </div>
-</div>
-
-<!-- Charts -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 lg:col-span-2">
-    <div class="flex items-center justify-between mb-4">
-      <div class="text-sm font-medium">Resultado mensal (Day × Swing)</div>
-      <div class="text-xs text-slate-500">valores líquidos · R$</div>
-    </div>
-    <div style="position:relative;height:300px"><canvas id="chartResult"></canvas></div>
-  </div>
-  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-    <div class="flex items-center justify-between mb-4">
-      <div class="text-sm font-medium">Resultado acumulado</div>
-      <div class="text-xs text-slate-500">no período</div>
-    </div>
-    <div style="position:relative;height:300px"><canvas id="chartAcc"></canvas></div>
+  <div class="mt-2 text-xs text-slate-500">
+    {% if excedeu %}Limite ultrapassado: as vendas do mês passam a ser tributadas.
+    {% else %}Saldo até o limite: {{ (isencao.limite - isencao.usado)|brl }}.{% endif %}
   </div>
 </div>
 
-<!-- Resumo anual -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-    <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Resultado no ano</div>
-    <div class="text-xl font-semibold {{ 'text-emerald-400' if resultado_ano>=0 else 'text-red-400' }}">{{ resultado_ano|brl }}</div>
+<div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+  <section class="rounded-lg border border-white/10 bg-slate-900/70 p-4 shadow-sm xl:col-span-2">
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <div>
+        <h2 class="text-sm font-semibold text-white">Resultado mensal</h2>
+        <p class="text-xs text-slate-500">Day Trade, Swing Trade e imposto apurado</p>
+      </div>
+      <span class="rounded-full border border-white/10 px-2 py-1 text-[11px] text-slate-500">R$</span>
+    </div>
+    <div class="h-80"><canvas id="chartResult"></canvas></div>
+  </section>
+
+  <section class="rounded-lg border border-white/10 bg-slate-900/70 p-4 shadow-sm">
+    <div class="mb-4">
+      <h2 class="text-sm font-semibold text-white">Composição anual</h2>
+      <p class="text-xs text-slate-500">Peso absoluto por modalidade</p>
+    </div>
+    <div class="h-80"><canvas id="chartMix"></canvas></div>
+  </section>
+
+  <section class="rounded-lg border border-white/10 bg-slate-900/70 p-4 shadow-sm xl:col-span-2">
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <div>
+        <h2 class="text-sm font-semibold text-white">Resultado acumulado</h2>
+        <p class="text-xs text-slate-500">Evolução mês a mês</p>
+      </div>
+      <span class="rounded-full border border-white/10 px-2 py-1 text-[11px] text-slate-500">{{ chart.labels|length }} meses</span>
+    </div>
+    <div class="h-72"><canvas id="chartAcc"></canvas></div>
+  </section>
+
+  <section class="rounded-lg border border-white/10 bg-slate-900/70 p-4 shadow-sm">
+    <div class="mb-4">
+      <h2 class="text-sm font-semibold text-white">Resultado por ativo</h2>
+      <p class="text-xs text-slate-500">Top ativos por impacto</p>
+    </div>
+    {% if chart.asset_labels %}
+      <div class="h-72"><canvas id="chartAssets"></canvas></div>
+    {% else %}
+      <div class="grid h-72 place-items-center rounded-lg border border-dashed border-white/10 text-sm text-slate-500">Sem fechamentos por ativo.</div>
+    {% endif %}
+  </section>
+</div>
+
+<div class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Resultado no ano</div>
+    <div class="mt-1 text-xl font-semibold tabular-nums {{ 'text-emerald-300' if resultado_ano>=0 else 'text-red-300' }}">{{ resultado_ano|brl }}</div>
   </div>
-  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-    <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Imposto apurado no ano</div>
-    <div class="text-xl font-semibold text-amber-300">{{ imposto_ano|brl }}</div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Imposto apurado no ano</div>
+    <div class="mt-1 text-xl font-semibold tabular-nums text-amber-300">{{ imposto_ano|brl }}</div>
   </div>
-  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-    <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Posições abertas</div>
-    <div class="text-xl font-semibold">{{ result.positions|length }} ativo(s)</div>
-    <a href="{{ url_for('main.positions') }}" class="text-xs text-brand hover:underline">ver carteira →</a>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Posições abertas</div>
+    <div class="mt-1 text-xl font-semibold tabular-nums text-white">{{ result.positions|length }} ativo(s)</div>
+    <a href="{{ url_for('main.positions') }}" class="mt-2 inline-flex text-xs text-emerald-300 hover:text-emerald-200">Ver carteira</a>
   </div>
 </div>
 
@@ -140,77 +194,212 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
   const C = {{ chart|tojson }};
-  const tick = '#94a3b8', grid = 'rgba(148,163,184,0.10)';
+  const tick = '#94a3b8';
+  const grid = 'rgba(148, 163, 184, 0.12)';
+  const surface = '#0f172a';
+  const border = 'rgba(255, 255, 255, 0.10)';
 
   Chart.defaults.font.family =
     "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
   Chart.defaults.color = tick;
+  Chart.defaults.plugins.legend.labels.usePointStyle = true;
+  Chart.defaults.plugins.legend.labels.pointStyle = 'rectRounded';
 
-  const fmtBRL  = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
-  const fmtAxis = v => new Intl.NumberFormat('pt-BR',{notation:'compact',maximumFractionDigits:1}).format(v||0);
+  const fmtBRL = (v) => new Intl.NumberFormat('pt-BR', {
+    style: 'currency', currency: 'BRL', maximumFractionDigits: 2
+  }).format(v || 0);
+  const fmtAxis = (v) => new Intl.NumberFormat('pt-BR', {
+    notation: 'compact', maximumFractionDigits: 1
+  }).format(v || 0);
+  const sum = (arr) => arr.reduce((acc, value) => acc + (Number(value) || 0), 0);
 
-  // gradiente vertical reutilizável (claro no topo -> escuro embaixo)
-  function vGrad(ctx, area, top, bottom) {
+  function gradient(ctx, top, bottom) {
+    const area = ctx.chart.chartArea;
     if (!area) return top;
-    const g = ctx.createLinearGradient(0, area.top, 0, area.bottom);
-    g.addColorStop(0, top); g.addColorStop(1, bottom);
+    const g = ctx.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    g.addColorStop(0, top);
+    g.addColorStop(1, bottom);
     return g;
   }
-  const fill = (c1, c2) => (c) => {
-    const {ctx, chartArea} = c.chart; return vGrad(ctx, chartArea, c1, c2);
-  };
 
   const tooltip = {
-    backgroundColor:'#0f172a', borderColor:'#1e293b', borderWidth:1,
-    titleColor:'#e2e8f0', bodyColor:'#cbd5e1', padding:10, cornerRadius:8,
-    usePointStyle:true,
-    callbacks:{ label:(i)=>`  ${i.dataset.label}: ${fmtBRL(i.parsed.y)}` },
+    backgroundColor: surface,
+    borderColor: border,
+    borderWidth: 1,
+    titleColor: '#f8fafc',
+    bodyColor: '#cbd5e1',
+    padding: 12,
+    cornerRadius: 8,
+    displayColors: true,
+    callbacks: {
+      label: (item) => {
+        const label = item.dataset.label || item.label || '';
+        const raw = item.parsed?.y ?? item.parsed?.x ?? item.parsed;
+        return ` ${label}: ${fmtBRL(raw)}`;
+      }
+    }
   };
-  const yAxis = { ticks:{color:tick, callback:fmtAxis}, grid:{color:grid, drawBorder:false},
-                  border:{display:false} };
-  const xAxis = { ticks:{color:tick}, grid:{display:false}, border:{display:false} };
-  const legend = { labels:{color:'#cbd5e1', usePointStyle:true, pointStyle:'rectRounded',
-                           boxWidth:10, padding:16} };
 
-  // --- Resultado mensal: barras Day/Swing agrupadas + linha de Imposto ---
+  const yMoney = {
+    ticks: { color: tick, callback: fmtAxis },
+    grid: { color: grid, drawBorder: false },
+    border: { display: false },
+  };
+  const xClean = {
+    ticks: { color: tick, maxRotation: 0 },
+    grid: { display: false },
+    border: { display: false },
+  };
+
+  const resultSeries = C.labels.map((_, i) => (C.day[i] || 0) + (C.swing[i] || 0));
+  const dayTotalAbs = Math.abs(sum(C.day));
+  const swingTotalAbs = Math.abs(sum(C.swing));
+  const taxTotalAbs = Math.abs(sum(C.tax));
+
   new Chart(document.getElementById('chartResult'), {
-    data:{ labels:C.labels, datasets:[
-      { type:'bar', label:'Day Trade', data:C.day, borderRadius:6,
-        maxBarThickness:34, backgroundColor:fill('#7dd3fc','#0ea5e9') },
-      { type:'bar', label:'Swing Trade', data:C.swing, borderRadius:6,
-        maxBarThickness:34, backgroundColor:fill('#6ee7b7','#059669') },
-      { type:'line', label:'Imposto', data:C.tax, borderColor:'#fbbf24',
-        backgroundColor:'#fbbf24', borderWidth:2, pointRadius:0,
-        pointHoverRadius:4, tension:.35 },
-    ]},
-    options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
-      plugins:{ legend, tooltip }, scales:{ x:xAxis, y:yAxis } }
+    data: {
+      labels: C.labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Day Trade',
+          data: C.day,
+          borderRadius: 6,
+          maxBarThickness: 30,
+          backgroundColor: (ctx) => gradient(ctx, 'rgba(56, 189, 248, 0.95)', 'rgba(14, 165, 233, 0.45)'),
+        },
+        {
+          type: 'bar',
+          label: 'Swing Trade',
+          data: C.swing,
+          borderRadius: 6,
+          maxBarThickness: 30,
+          backgroundColor: (ctx) => gradient(ctx, 'rgba(52, 211, 153, 0.95)', 'rgba(5, 150, 105, 0.45)'),
+        },
+        {
+          type: 'line',
+          label: 'Imposto',
+          data: C.tax,
+          borderColor: '#fbbf24',
+          backgroundColor: '#fbbf24',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.35,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { tooltip, legend: { labels: { color: '#cbd5e1', boxWidth: 10, padding: 14 } } },
+      scales: { x: xClean, y: yMoney },
+    }
   });
 
-  // --- Acumulado: área com gradiente, linha suave, pontos só no hover ---
+  new Chart(document.getElementById('chartMix'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Day Trade', 'Swing Trade', 'Imposto'],
+      datasets: [{
+        data: [dayTotalAbs, swingTotalAbs, taxTotalAbs].map((value) => value || 0),
+        backgroundColor: ['#38bdf8', '#34d399', '#fbbf24'],
+        borderColor: '#0f172a',
+        borderWidth: 3,
+        hoverOffset: 5,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: {
+        tooltip,
+        legend: { position: 'bottom', labels: { color: '#cbd5e1', boxWidth: 10, padding: 14 } },
+      },
+    }
+  });
+
   new Chart(document.getElementById('chartAcc'), {
-    type:'line',
-    data:{ labels:C.labels, datasets:[
-      { label:'Acumulado', data:C.acc, borderColor:'#34d399', borderWidth:2,
-        fill:true, tension:.35, pointRadius:0, pointHoverRadius:4,
-        backgroundColor:fill('rgba(16,185,129,0.35)','rgba(16,185,129,0)') } ]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip }, scales:{ x:xAxis, y:yAxis } }
+    type: 'line',
+    data: {
+      labels: C.labels,
+      datasets: [{
+        label: 'Acumulado',
+        data: C.acc,
+        borderColor: '#34d399',
+        borderWidth: 2.5,
+        fill: true,
+        tension: 0.35,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        segment: {
+          borderColor: (ctx) => ctx.p1.parsed.y >= 0 ? '#34d399' : '#fb7185',
+        },
+        backgroundColor: (ctx) => gradient(ctx, 'rgba(52, 211, 153, 0.28)', 'rgba(52, 211, 153, 0)'),
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { tooltip, legend: { display: false } },
+      scales: { x: xClean, y: yMoney },
+    }
   });
 
-  // --- Sparklines dos cards (sem eixos, sem tooltip) ---
-  const sparkOpts = { responsive:true, maintainAspectRatio:false, animation:false,
-    plugins:{legend:{display:false}, tooltip:{enabled:false}},
-    scales:{x:{display:false}, y:{display:false}}, elements:{point:{radius:0}} };
-  const resultSeries = C.labels.map((_,i)=> (C.day[i]||0)+(C.swing[i]||0));
-  function spark(id, data, line, areaTop) {
-    const el = document.getElementById(id); if (!el) return;
-    new Chart(el, { type:'line', data:{ labels:C.labels, datasets:[
-      { data, borderColor:line, borderWidth:1.5, tension:.35, fill:true,
-        backgroundColor:fill(areaTop,'rgba(0,0,0,0)') } ]}, options:sparkOpts });
+  const assetCanvas = document.getElementById('chartAssets');
+  if (assetCanvas) {
+    new Chart(assetCanvas, {
+      type: 'bar',
+      data: {
+        labels: C.asset_labels,
+        datasets: [{
+          label: 'Resultado',
+          data: C.asset_results,
+          borderRadius: 6,
+          backgroundColor: C.asset_results.map((value) => value >= 0 ? 'rgba(52, 211, 153, 0.85)' : 'rgba(248, 113, 113, 0.85)'),
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { tooltip, legend: { display: false } },
+        scales: {
+          x: yMoney,
+          y: { ticks: { color: '#cbd5e1' }, grid: { display: false }, border: { display: false } },
+        },
+      }
+    });
   }
-  spark('sparkResult', resultSeries, '#34d399', 'rgba(52,211,153,0.20)');
-  spark('sparkTax', C.tax, '#fbbf24', 'rgba(251,191,36,0.20)');
+
+  const sparkOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+    scales: { x: { display: false }, y: { display: false } },
+    elements: { point: { radius: 0 } },
+  };
+  function spark(id, data, color, top) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    new Chart(el, {
+      type: 'line',
+      data: { labels: C.labels, datasets: [{
+        data,
+        borderColor: color,
+        borderWidth: 1.8,
+        tension: 0.35,
+        fill: true,
+        backgroundColor: (ctx) => gradient(ctx, top, 'rgba(15, 23, 42, 0)'),
+      }] },
+      options: sparkOpts,
+    });
+  }
+  spark('sparkResult', resultSeries, '#34d399', 'rgba(52, 211, 153, 0.22)');
+  spark('sparkTax', C.tax, '#fbbf24', 'rgba(251, 191, 36, 0.20)');
 </script>
 {% endif %}
 {% endblock %}

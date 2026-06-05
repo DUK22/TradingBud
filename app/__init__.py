@@ -36,14 +36,15 @@ def _configure_logging():
     })
 
 
-# Content-Security-Policy: o CSS (Tailwind) agora é servido localmente ('self');
-# resta o Chart.js via jsdelivr. 'unsafe-inline' cobre o script de gráfico inline.
+# Content-Security-Policy: CSS local; Chart.js via jsdelivr; widget de gráfico
+# em tempo real do TradingView (script de s3 + iframe de tradingview.com).
 _CSP = (
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://s3.tradingview.com; "
     "style-src 'self' 'unsafe-inline'; "
-    "img-src 'self' data:; "
-    "connect-src 'self'; "
+    "img-src 'self' data: https://*.tradingview.com; "
+    "connect-src 'self' https://*.tradingview.com wss://*.tradingview.com; "
+    "frame-src https://www.tradingview.com https://s.tradingview.com https://www.tradingview-widget.com; "
     "frame-ancestors 'none'; "
     "base-uri 'self'; "
     "form-action 'self'"
