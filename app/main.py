@@ -1,14 +1,25 @@
 """Blueprint principal: dashboard, upload/OCR, notas, apuração, posições, B3."""
+import json
 import os
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
-from flask_login import current_user, login_required
+from flask import (
+    Blueprint,
+    Response,
+    abort,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
+from flask_login import current_user, login_required, logout_user
 from werkzeug.utils import secure_filename
 
 from .extensions import db
-from .models import B3Connection, BrokerageNote, Trade
+from .models import B3Connection, BrokerageNote, Trade, User
 from .services import ocr, tax_engine
 from .services.b3_client import B3Config, sync_status
 
@@ -250,6 +261,62 @@ def positions():
     result = tax_engine.compute(_user_notes())
     total = sum((p.market_cost for p in result.positions), Decimal("0"))
     return render_template("positions.html", positions=result.positions, total=total)
+
+
+# --------------------------------------------------------------------------- #
+# Conta / LGPD (exportação e exclusão dos dados do usuário)
+# --------------------------------------------------------------------------- #
+@main_bp.route("/conta")
+@login_required
+def account():
+    return render_template("account.html")
+
+
+@main_bp.route("/conta/exportar")
+@login_required
+def account_export():
+    """Exporta todos os dados do usuário em JSON (direito de portabilidade)."""
+    notes = _user_notes()
+    data = {
+        "perfil": {
+            "nome": current_user.name,
+            "email": current_user.email,
+            "cpf": current_user.cpf,
+            "criado_em": current_user.created_at,
+        },
+        "notas": [{
+            "id": n.id, "corretora": n.broker, "numero": n.note_number,
+            "data_pregao": n.trade_date, "data_liquidacao": n.settlement_date,
+            "segmento": n.segment, "origem": n.source,
+            "corretagem": n.corretagem, "emolumentos": n.emolumentos,
+            "taxa_liquidacao": n.taxa_liquidacao, "taxa_registro": n.taxa_registro,
+            "iss": n.iss, "outras": n.outras,
+            "irrf_day": n.irrf_day, "irrf_swing": n.irrf_swing,
+            "net_value": n.net_value,
+            "negocios": [{
+                "data": t.trade_date, "ativo": t.asset, "mercado": t.market,
+                "lado": t.side, "quantidade": t.quantity, "preco": t.price,
+                "valor": t.gross_value,
+            } for t in n.trades],
+        } for n in notes],
+    }
+    payload = json.dumps(data, ensure_ascii=False, indent=2, default=str)
+    resp = Response(payload, mimetype="application/json")
+    resp.headers["Content-Disposition"] = (
+        f"attachment; filename=ir-traders-dados-{current_user.id}.json")
+    return resp
+
+
+@main_bp.route("/conta/excluir", methods=["POST"])
+@login_required
+def account_delete():
+    """Exclui a conta e TODOS os dados (cascade remove notas/negócios/B3)."""
+    user = db.session.get(User, current_user.id)
+    logout_user()
+    db.session.delete(user)
+    db.session.commit()
+    flash("Sua conta e todos os dados associados foram excluídos.", "success")
+    return redirect(url_for("auth.login"))
 
 
 # --------------------------------------------------------------------------- #

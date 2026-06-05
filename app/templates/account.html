@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Minha conta · IR Traders{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-1">Minha conta</h1>
+<p class="text-slate-500 text-sm mb-6">Seus dados e opções de privacidade (LGPD).</p>
+
+<div class="max-w-2xl space-y-6">
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 text-sm">
+    <div class="font-medium mb-3">Dados cadastrais</div>
+    <div class="flex justify-between py-1.5 border-b border-slate-800/60">
+      <span class="text-slate-400">Nome</span><span>{{ current_user.name }}</span>
+    </div>
+    <div class="flex justify-between py-1.5 border-b border-slate-800/60">
+      <span class="text-slate-400">E-mail</span><span>{{ current_user.email }}</span>
+    </div>
+    <div class="flex justify-between py-1.5">
+      <span class="text-slate-400">CPF</span>
+      <span>{{ current_user.cpf or '—' }} <span class="text-xs text-slate-600">(criptografado)</span></span>
+    </div>
+  </div>
+
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+    <div class="font-medium mb-1">Exportar meus dados</div>
+    <p class="text-sm text-slate-400 mb-4">Baixe todo o seu histórico (perfil, notas e
+      negócios) em um arquivo JSON.</p>
+    <a href="{{ url_for('main.account_export') }}"
+       class="inline-block bg-brand hover:bg-brand-dark text-slate-950 font-semibold rounded-lg px-4 py-2 text-sm">
+      Baixar JSON
+    </a>
+  </div>
+
+  <div class="bg-red-500/5 border border-red-500/30 rounded-xl p-6">
+    <div class="font-medium text-red-300 mb-1">Excluir minha conta</div>
+    <p class="text-sm text-slate-400 mb-4">Remove permanentemente sua conta e <strong>todos</strong>
+      os dados (notas, negócios e integrações). Esta ação é irreversível.</p>
+    <form method="post" action="{{ url_for('main.account_delete') }}"
+          onsubmit="return confirm('Tem certeza? Isso apaga sua conta e todos os dados, sem volta.')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="text-sm text-red-300 border border-red-500/40 rounded-lg px-4 py-2 hover:bg-red-500/10">
+        Excluir conta e dados
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

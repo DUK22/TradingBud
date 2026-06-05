@@ -81,6 +81,7 @@ Variáveis de ambiente (veja `.env.example`):
 | Variável | Padrão | Observação |
 |----------|--------|------------|
 | `SECRET_KEY` | gerada em dev | **obrigatória** quando `FLASK_ENV=production` |
+| `CPF_ENC_KEY` | fallback dev | chave Fernet; **obrigatória** em produção (CPF criptografado) |
 | `FLASK_ENV` | `development` | em `production` liga cookies `Secure`/HSTS |
 | `FLASK_DEBUG` | `0` | `1` só em dev (o debugger expõe console RCE) |
 | `DATABASE_URL` | SQLite local | ex.: `postgresql+psycopg2://...` |
@@ -89,6 +90,10 @@ Variáveis de ambiente (veja `.env.example`):
 Já incluído: proteção **CSRF** em todas as rotas POST, **rate limiting** no
 login/cadastro, cabeçalhos de segurança (**CSP, HSTS, X-Frame-Options,
 X-Content-Type-Options**) e cookies de sessão `HttpOnly`/`SameSite`.
+
+**LGPD:** o CPF é **criptografado em repouso** (Fernet) de forma transparente,
+e em *Minha conta* o usuário pode **exportar** todos os seus dados (JSON) ou
+**excluir** a conta com remoção em cascata (notas, negócios e integrações).
 
 ### Banco de dados e migrações (Alembic)
 

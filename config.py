@@ -26,9 +26,26 @@ def _resolve_secret_key() -> str:
     return "dev-" + secrets.token_hex(16)
 
 
+def _resolve_cpf_enc_key() -> str | None:
+    """Chave Fernet (urlsafe-base64, 32 bytes) p/ criptografar o CPF em repouso.
+
+    Gere com:
+        python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    Em produção é OBRIGATÓRIA (se trocar/perder, os CPFs já gravados ficam
+    ilegíveis). Em dev, ausência => o módulo de cripto usa um fallback fixo."""
+    key = os.environ.get("CPF_ENC_KEY")
+    if not key and IS_PRODUCTION:
+        raise RuntimeError(
+            "CPF_ENC_KEY não definida. Defina-a (chave Fernet) antes de subir "
+            "em produção — o CPF é criptografado em repouso (LGPD)."
+        )
+    return key
+
+
 class Config:
     # --- Segurança ---
     SECRET_KEY = _resolve_secret_key()
+    CPF_ENC_KEY = _resolve_cpf_enc_key()
 
     # Cookies de sessão: HttpOnly sempre; Secure só em produção (exige HTTPS).
     SESSION_COOKIE_HTTPONLY = True

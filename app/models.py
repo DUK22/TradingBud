@@ -15,6 +15,7 @@ from decimal import Decimal
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from .crypto import EncryptedString
 from .extensions import db
 
 NUM = db.Numeric(18, 6)
@@ -32,7 +33,7 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    cpf = db.Column(db.String(14))  # usado na futura integração B3
+    cpf = db.Column(EncryptedString())  # criptografado em repouso (LGPD)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     notes = db.relationship(

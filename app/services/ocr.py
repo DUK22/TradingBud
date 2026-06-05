@@ -10,6 +10,7 @@ Fluxo:
 """
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -19,6 +20,8 @@ try:
     import pdfplumber
 except ImportError:
     pdfplumber = None
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -302,6 +305,13 @@ def parse_note(text):
     note = parser.parse(text)
     if getattr(parser, "broker_name", "SINACOR") != "SINACOR":
         note.broker = parser.broker_name
+    # Visibilidade p/ diagnóstico/calibração (antes as falhas eram silenciosas).
+    if note.warnings:
+        log.warning("OCR (%s/%s): %s", note.broker, note.segment,
+                    " ".join(note.warnings))
+    else:
+        log.info("OCR (%s/%s): %d negócio(s) reconhecido(s).",
+                 note.broker, note.segment, len(note.trades))
     return note
 
 
