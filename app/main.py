@@ -1,7 +1,7 @@
 """Blueprint principal: dashboard, upload/OCR, notas, apuração, posições, B3."""
 import os
-from datetime import date, datetime
-from decimal import Decimal
+from datetime import date, datetime, timezone
+from decimal import Decimal, InvalidOperation
 
 from flask import (Blueprint, render_template, redirect, url_for, flash, request,
                    current_app, abort)
@@ -113,10 +113,18 @@ def upload():
             flash("Formato inválido. Envie um PDF.", "error")
             return redirect(request.url)
 
-        fname = secure_filename(file.filename)
-        stamped = f"{current_user.id}_{datetime.utcnow():%Y%m%d%H%M%S}_{fname}"
+        fname = secure_filename(file.filename) or "nota.pdf"
+        stamped = f"{current_user.id}_{datetime.now(timezone.utc):%Y%m%d%H%M%S}_{fname}"
         path = os.path.join(current_app.config["UPLOAD_FOLDER"], stamped)
         file.save(path)
+
+        # Defesa em profundidade: além da extensão, exige assinatura real de PDF.
+        with open(path, "rb") as fh:
+            head = fh.read(5)
+        if head != b"%PDF-":
+            os.remove(path)
+            flash("O arquivo não é um PDF válido.", "error")
+            return redirect(request.url)
 
         try:
             parsed = ocr.parse_pdf(path)
@@ -185,13 +193,18 @@ def note_manual():
             td = datetime.strptime(request.form["trade_date"], "%Y-%m-%d").date()
             qty = Decimal(request.form["quantity"].replace(",", "."))
             price = Decimal(request.form["price"].replace(",", "."))
-        except (KeyError, ValueError):
+            corretagem = Decimal((request.form.get("corretagem") or "0").replace(",", ".") or "0")
+        except (KeyError, ValueError, InvalidOperation):
             flash("Preencha data, quantidade e preço corretamente.", "error")
+            return redirect(request.url)
+
+        if qty <= 0 or price < 0:
+            flash("Quantidade deve ser positiva e preço não pode ser negativo.", "error")
             return redirect(request.url)
 
         note = BrokerageNote(
             user_id=current_user.id, broker="MANUAL", trade_date=td, source="MANUAL",
-            corretagem=Decimal(request.form.get("corretagem", "0").replace(",", ".") or "0"),
+            corretagem=corretagem,
             net_value=qty * price,
         )
         db.session.add(note)

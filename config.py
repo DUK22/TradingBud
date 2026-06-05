@@ -1,17 +1,44 @@
 """Configuração da aplicação.
 
 Tudo é parametrizável por variáveis de ambiente para facilitar o deploy.
-Para produção, defina obrigatoriamente SECRET_KEY.
+Para produção (FLASK_ENV=production), defina obrigatoriamente SECRET_KEY — a
+app aborta a inicialização se ela estiver ausente.
 """
 import os
+import secrets
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 instance_dir = os.path.join(basedir, "instance")
 
+IS_PRODUCTION = os.environ.get("FLASK_ENV", "development").lower() == "production"
+
+
+def _resolve_secret_key() -> str:
+    key = os.environ.get("SECRET_KEY")
+    if key:
+        return key
+    if IS_PRODUCTION:
+        raise RuntimeError(
+            "SECRET_KEY não definida. Defina a variável de ambiente SECRET_KEY "
+            "antes de subir em produção (FLASK_ENV=production)."
+        )
+    # Dev: gera uma chave efêmera (sessões caem ao reiniciar — aceitável em dev).
+    return "dev-" + secrets.token_hex(16)
+
 
 class Config:
     # --- Segurança ---
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-troque-em-producao")
+    SECRET_KEY = _resolve_secret_key()
+
+    # Cookies de sessão: HttpOnly sempre; Secure só em produção (exige HTTPS).
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = IS_PRODUCTION
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SECURE = IS_PRODUCTION
+
+    # Rate limiting (Flask-Limiter). Em produção use Redis: redis://host:6379
+    RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
 
     # --- Banco de dados (SQLite por padrão, para portabilidade inicial) ---
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or (
@@ -36,3 +63,4 @@ class TestConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     WTF_CSRF_ENABLED = False
+    RATELIMIT_ENABLED = False

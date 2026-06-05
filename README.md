@@ -67,11 +67,28 @@ ir-traders/
 
 ```bash
 pip install -r requirements.txt
+cp .env.example .env    # ajuste SECRET_KEY etc. (opcional em dev)
 python seed.py          # opcional: cria dados de demonstração
 python run.py           # http://127.0.0.1:5000
 ```
 
 **Login de demonstração:** `demo@trader.com` / `demo1234`
+
+### Configuração / segurança
+
+Variáveis de ambiente (veja `.env.example`):
+
+| Variável | Padrão | Observação |
+|----------|--------|------------|
+| `SECRET_KEY` | gerada em dev | **obrigatória** quando `FLASK_ENV=production` |
+| `FLASK_ENV` | `development` | em `production` liga cookies `Secure`/HSTS |
+| `FLASK_DEBUG` | `0` | `1` só em dev (o debugger expõe console RCE) |
+| `DATABASE_URL` | SQLite local | ex.: `postgresql+psycopg2://...` |
+| `RATELIMIT_STORAGE_URI` | `memory://` | use Redis em produção (múltiplos workers) |
+
+Já incluído: proteção **CSRF** em todas as rotas POST, **rate limiting** no
+login/cadastro, cabeçalhos de segurança (**CSP, HSTS, X-Frame-Options,
+X-Content-Type-Options**) e cookies de sessão `HttpOnly`/`SameSite`.
 
 ## Testes
 

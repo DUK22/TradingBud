@@ -3,12 +3,42 @@
 Cria a app Flask, inicializa extensões (SQLAlchemy, Login), registra os
 blueprints (auth e main) e garante a criação do schema SQLite.
 """
+import logging
 import os
 from flask import Flask
 
 from config import Config, instance_dir
-from .extensions import db, login_manager
+from .extensions import db, login_manager, csrf, limiter
 from .utils import register_filters
+
+log = logging.getLogger(__name__)
+
+
+# Content-Security-Policy: a UI usa Tailwind e Chart.js via CDN, então liberamos
+# esses hosts. Ao migrar para assets locais (build do Tailwind), troque por 'self'.
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data:; "
+    "connect-src 'self'; "
+    "frame-ancestors 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'"
+)
+
+
+def _register_security_headers(app):
+    @app.after_request
+    def _set_headers(resp):
+        resp.headers.setdefault("Content-Security-Policy", _CSP)
+        resp.headers.setdefault("X-Frame-Options", "DENY")
+        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        if app.config.get("SESSION_COOKIE_SECURE"):
+            resp.headers.setdefault(
+                "Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        return resp
 
 
 def _ensure_bmf_columns():
@@ -28,8 +58,9 @@ def _ensure_bmf_columns():
             with db.engine.begin() as conn:
                 for s in stmts:
                     conn.execute(text(s))
-    except Exception:
-        pass
+    except Exception:  # noqa: BLE001
+        # Não derruba a app, mas registra para diagnóstico (antes era silencioso).
+        log.exception("Falha na migração leve de colunas BM&F.")
 
 
 def create_app(config_class=Config):
@@ -43,6 +74,11 @@ def create_app(config_class=Config):
     # Extensões
     db.init_app(app)
     login_manager.init_app(app)
+    csrf.init_app(app)
+    limiter.init_app(app)
+
+    # Cabeçalhos de segurança (CSP, X-Frame-Options, HSTS em prod, ...)
+    _register_security_headers(app)
 
     # User loader
     from .models import User
@@ -60,6 +96,20 @@ def create_app(config_class=Config):
 
     # Filtros Jinja (formatação pt-BR)
     register_filters(app)
+
+    # Handlers amigáveis: CSRF inválido (400) e limite de requisições (429)
+    from flask import flash, redirect, request, url_for
+    from flask_wtf.csrf import CSRFError
+
+    @app.errorhandler(CSRFError)
+    def _handle_csrf(e):
+        flash("Sessão expirada ou formulário inválido. Tente novamente.", "error")
+        return redirect(request.referrer or url_for("main.dashboard")), 400
+
+    @app.errorhandler(429)
+    def _handle_ratelimit(e):
+        flash("Muitas tentativas em pouco tempo. Aguarde um instante e tente de novo.", "error")
+        return redirect(request.referrer or url_for("auth.login")), 429
 
     # Schema
     with app.app_context():

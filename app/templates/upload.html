@@ -6,6 +6,7 @@
 
 <div class="grid lg:grid-cols-3 gap-6">
   <form method="post" enctype="multipart/form-data" class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label class="block border-2 border-dashed border-slate-700 rounded-xl p-10 text-center cursor-pointer hover:border-brand transition">
       <input type="file" name="nota" accept="application/pdf" class="hidden" onchange="document.getElementById('fn').textContent = this.files[0]?.name || ''">
       <div class="text-slate-400">Clique para selecionar o PDF</div>
