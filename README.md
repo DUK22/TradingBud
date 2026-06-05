@@ -43,24 +43,31 @@ de prejuízos e alíquotas corretas, e mostra tudo num dashboard.
 
 ```
 ir-traders/
-├── run.py                  # ponto de entrada
-├── config.py               # config (env vars; SQLite por padrão)
+├── run.py                  # ponto de entrada (dev)
+├── wsgi.py                 # entrypoint WSGI (gunicorn/waitress)
+├── config.py               # config por env vars (SECRET_KEY, CPF_ENC_KEY...)
 ├── seed.py                 # popula dados de demonstração
-├── requirements.txt
+├── requirements*.txt       # runtime / -dev (testes+lint) / -prod (WSGI)
+├── Dockerfile              # build multi-stage (CSS + gunicorn)
+├── docker-entrypoint.sh    # aplica migrações e sobe o servidor
+├── package.json            # build do Tailwind (gera app/static/app.css)
+├── tailwind.config.js
+├── migrations/             # Alembic (Flask-Migrate)
 ├── app/
-│   ├── __init__.py         # application factory
-│   ├── extensions.py       # db, login_manager
+│   ├── __init__.py         # application factory (extensões, CSP, logging)
+│   ├── extensions.py       # db, migrate, login, csrf, limiter
+│   ├── crypto.py           # EncryptedString (CPF criptografado — LGPD)
 │   ├── models.py           # User, BrokerageNote, Trade, B3Connection
-│   ├── auth.py             # cadastro/login/logout
-│   ├── main.py             # dashboard, upload, notas, apuração, posições, B3
+│   ├── auth.py             # cadastro/login/logout (rate-limited)
+│   ├── main.py             # dashboard, upload, notas, apuração, conta/LGPD, B3
 │   ├── utils.py            # filtros pt-BR (R$, %, meses)
 │   ├── services/
-│   │   ├── ocr.py          # parser SINACOR/BTG (plugável por corretora)
+│   │   ├── ocr.py          # parser SINACOR/BTG (BOVESPA e BM&F)
 │   │   ├── tax_engine.py   # preço médio, day/swing, apuração, impostos
 │   │   └── b3_client.py    # stub de integração B3 (Área do Investidor)
+│   ├── static/             # app.css (build do Tailwind) + src/input.css
 │   └── templates/          # UI Tailwind
-└── tests/
-    └── test_tax_engine.py  # 7 testes do motor fiscal
+└── tests/                  # pytest: motor fiscal, OCR, auth, utils, b3, rotas
 ```
 
 ## Como rodar
