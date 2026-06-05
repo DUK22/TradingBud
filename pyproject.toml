@@ -5,7 +5,7 @@ addopts = "-q"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-exclude = [".venv", "instance", "preview", "__pycache__"]
+exclude = [".venv", "instance", "preview", "__pycache__", "migrations"]
 
 [tool.ruff.lint]
 # E/W: pycodestyle, F: pyflakes, I: isort, B: bugbear, UP: pyupgrade

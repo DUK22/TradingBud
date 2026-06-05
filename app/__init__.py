@@ -8,12 +8,14 @@ import os
 
 from flask import Flask
 
-from config import Config, instance_dir
+from config import Config, basedir, instance_dir
 
-from .extensions import csrf, db, limiter, login_manager
+from .extensions import csrf, db, limiter, login_manager, migrate
 from .utils import register_filters
 
 log = logging.getLogger(__name__)
+
+MIGRATIONS_DIR = os.path.join(basedir, "migrations")
 
 
 # Content-Security-Policy: a UI usa Tailwind e Chart.js via CDN, então liberamos
@@ -43,26 +45,29 @@ def _register_security_headers(app):
         return resp
 
 
-def _ensure_bmf_columns():
-    """Migração leve p/ SQLite: adiciona colunas BM&F se faltarem (sem Alembic)."""
-    from sqlalchemy import inspect, text
-    try:
-        insp = inspect(db.engine)
-        cols = {c["name"] for c in insp.get_columns("brokerage_notes")}
-        stmts = []
-        if "segment" not in cols:
-            stmts.append("ALTER TABLE brokerage_notes ADD COLUMN segment VARCHAR(20) DEFAULT 'BOVESPA'")
-        if "daytrade_gross" not in cols:
-            stmts.append("ALTER TABLE brokerage_notes ADD COLUMN daytrade_gross NUMERIC(18,6) DEFAULT 0")
-        if "normal_gross" not in cols:
-            stmts.append("ALTER TABLE brokerage_notes ADD COLUMN normal_gross NUMERIC(18,6) DEFAULT 0")
-        if stmts:
-            with db.engine.begin() as conn:
-                for s in stmts:
-                    conn.execute(text(s))
-    except Exception:  # noqa: BLE001
-        # Não derruba a app, mas registra para diagnóstico (antes era silencioso).
-        log.exception("Falha na migração leve de colunas BM&F.")
+def _init_schema(app):
+    """Garante o schema do banco.
+
+    - Testes (in-memory): cria as tabelas direto via create_all().
+    - Demais ambientes: aplica as migrações Alembic (flask db upgrade) — assim
+      a evolução do schema é versionada e auditável (substitui o antigo
+      create_all() + ALTER TABLE manual).
+
+    Defina SKIP_SCHEMA_INIT=1 para pular este passo (ex.: ao rodar os próprios
+    comandos `flask db ...`, evitando efeitos colaterais na autogeração)."""
+    if os.environ.get("SKIP_SCHEMA_INIT") == "1":
+        return
+    with app.app_context():
+        if app.config.get("TESTING"):
+            db.create_all()
+            return
+        from flask_migrate import upgrade
+        try:
+            upgrade()
+        except Exception:  # noqa: BLE001
+            # Fallback p/ não derrubar a app; registra para diagnóstico.
+            log.exception("Falha ao aplicar migrações; usando create_all() de fallback.")
+            db.create_all()
 
 
 def create_app(config_class=Config):
@@ -75,6 +80,8 @@ def create_app(config_class=Config):
 
     # Extensões
     db.init_app(app)
+    from . import models  # noqa: F401  (registra os modelos p/ o Alembic autogenerate)
+    migrate.init_app(app, db, directory=MIGRATIONS_DIR)
     login_manager.init_app(app)
     csrf.init_app(app)
     limiter.init_app(app)
@@ -113,9 +120,7 @@ def create_app(config_class=Config):
         flash("Muitas tentativas em pouco tempo. Aguarde um instante e tente de novo.", "error")
         return redirect(request.referrer or url_for("auth.login")), 429
 
-    # Schema
-    with app.app_context():
-        db.create_all()
-        _ensure_bmf_columns()
+    # Schema (migrações Alembic; create_all apenas em testes)
+    _init_schema(app)
 
     return app

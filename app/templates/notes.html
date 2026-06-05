@@ -6,7 +6,7 @@
   <a href="{{ url_for('main.upload') }}" class="bg-brand text-slate-950 font-semibold rounded-lg px-4 py-2 text-sm">+ Importar</a>
 </div>
 
-{% if not notes %}
+{% if not pagination.items %}
 <p class="text-slate-500">Nenhuma nota cadastrada.</p>
 {% else %}
 <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
@@ -20,7 +20,7 @@
       </tr>
     </thead>
     <tbody class="divide-y divide-slate-800">
-      {% for n in notes %}
+      {% for n in pagination.items %}
       <tr class="hover:bg-slate-800/30">
         <td class="px-4 py-3">{{ n.trade_date.strftime('%d/%m/%Y') }}</td>
         <td class="px-4 py-3">{{ n.broker }}</td>
@@ -35,5 +35,6 @@
     </tbody>
   </table>
 </div>
+{% include "_pagination.html" %}
 {% endif %}
 {% endblock %}

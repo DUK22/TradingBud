@@ -51,6 +51,9 @@ class Config:
     MAX_CONTENT_LENGTH = 25 * 1024 * 1024  # 25 MB por arquivo
     ALLOWED_EXTENSIONS = {"pdf"}
 
+    # --- Paginação das listagens (notas, negócios) ---
+    ITEMS_PER_PAGE = int(os.environ.get("ITEMS_PER_PAGE", "25"))
+
     # --- Integração futura com a B3 (Área do Investidor) ---
     # Placeholders: a API oficial ainda exige convênio/credenciais.
     B3_API_BASE_URL = os.environ.get("B3_API_BASE_URL", "https://investidor.b3.com.br/api/v1")

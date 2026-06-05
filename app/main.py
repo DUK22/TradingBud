@@ -149,9 +149,12 @@ def upload():
 @main_bp.route("/notas")
 @login_required
 def notes():
-    notes = (BrokerageNote.query.filter_by(user_id=current_user.id)
-             .order_by(BrokerageNote.trade_date.desc()).all())
-    return render_template("notes.html", notes=notes)
+    page = request.args.get("page", 1, type=int)
+    pagination = (BrokerageNote.query.filter_by(user_id=current_user.id)
+                  .order_by(BrokerageNote.trade_date.desc())
+                  .paginate(page=page, per_page=current_app.config["ITEMS_PER_PAGE"],
+                            error_out=False))
+    return render_template("notes.html", pagination=pagination)
 
 
 @main_bp.route("/notas/<int:note_id>")
@@ -178,9 +181,12 @@ def note_delete(note_id):
 @main_bp.route("/negocios")
 @login_required
 def trades():
-    items = (Trade.query.filter_by(user_id=current_user.id)
-             .order_by(Trade.trade_date.desc(), Trade.id.desc()).all())
-    return render_template("trades.html", trades=items)
+    page = request.args.get("page", 1, type=int)
+    pagination = (Trade.query.filter_by(user_id=current_user.id)
+                  .order_by(Trade.trade_date.desc(), Trade.id.desc())
+                  .paginate(page=page, per_page=current_app.config["ITEMS_PER_PAGE"],
+                            error_out=False))
+    return render_template("trades.html", pagination=pagination)
 
 
 # --- Lançamento manual (útil sem PDF) ---

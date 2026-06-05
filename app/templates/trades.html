@@ -6,7 +6,7 @@
   <a href="{{ url_for('main.note_manual') }}" class="border border-slate-700 rounded-lg px-4 py-2 text-sm hover:bg-slate-800">+ Lançar manual</a>
 </div>
 
-{% if not trades %}
+{% if not pagination.items %}
 <p class="text-slate-500">Nenhum negócio registrado.</p>
 {% else %}
 <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
@@ -18,7 +18,7 @@
       <th class="px-4 py-3 text-right">Valor</th></tr>
     </thead>
     <tbody class="divide-y divide-slate-800">
-      {% for t in trades %}
+      {% for t in pagination.items %}
       <tr class="hover:bg-slate-800/30">
         <td class="px-4 py-3">{{ t.trade_date.strftime('%d/%m/%Y') }}</td>
         <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded {{ 'bg-emerald-500/15 text-emerald-400' if t.side=='C' else 'bg-red-500/15 text-red-400' }}">{{ 'C' if t.side=='C' else 'V' }}</span></td>
@@ -32,5 +32,6 @@
     </tbody>
   </table>
 </div>
+{% include "_pagination.html" %}
 {% endif %}
 {% endblock %}

@@ -90,6 +90,22 @@ Já incluído: proteção **CSRF** em todas as rotas POST, **rate limiting** no
 login/cadastro, cabeçalhos de segurança (**CSP, HSTS, X-Frame-Options,
 X-Content-Type-Options**) e cookies de sessão `HttpOnly`/`SameSite`.
 
+### Banco de dados e migrações (Alembic)
+
+O schema é versionado com **Flask-Migrate/Alembic** (pasta `migrations/`). Em
+dev, a app aplica as migrações automaticamente no startup. Para evoluir o
+schema após alterar os modelos:
+
+```bash
+export FLASK_APP=run.py
+flask db migrate -m "descrição da mudança"   # gera a migração
+flask db upgrade                              # aplica
+```
+
+Em **produção**, aplique as migrações no deploy (`flask db upgrade`) e defina
+`SKIP_SCHEMA_INIT=1` para desligar o auto-upgrade no startup (evita corrida
+entre múltiplos workers).
+
 ## Testes e lint
 
 ```bash
