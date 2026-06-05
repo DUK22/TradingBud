@@ -1,32 +1,65 @@
 {% extends "base.html" %}
 {% block title %}Integração B3 · IR Traders{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-1">Integração B3 — Área do Investidor</h1>
-<p class="text-slate-500 text-sm mb-6">Sincronização automática das negociações direto da B3 (em preparação).</p>
+<div class="mb-6">
+  <h1 class="text-2xl font-semibold tracking-tight text-white">Integração B3</h1>
+  <p class="mt-1 text-sm text-slate-500">Importe suas negociações direto da Área do Investidor da B3.</p>
+</div>
 
-<div class="max-w-2xl bg-slate-900 border border-slate-800 rounded-xl p-6">
-  <div class="flex items-center gap-3 mb-4">
+<div class="grid gap-6 lg:grid-cols-3">
+  <!-- Importar planilha (funciona) -->
+  <div class="lg:col-span-2 rounded-xl border border-white/10 bg-slate-900/70 p-6">
+    <div class="flex items-center gap-2">
+      <span class="rounded-full bg-emerald-400/15 px-2 py-0.5 text-xs font-medium text-emerald-300">Disponível</span>
+      <h2 class="font-semibold text-white">Importar planilha de Negociação</h2>
+    </div>
+    <p class="mt-2 text-sm text-slate-400">
+      Pega <strong>todas</strong> as corretoras (BTG incluída), ações e futuros, de uma vez.
+    </p>
+
+    <form method="post" action="{{ url_for('main.b3_import_upload') }}" enctype="multipart/form-data" class="mt-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="block cursor-pointer rounded-xl border-2 border-dashed border-white/10 p-8 text-center transition hover:border-emerald-400/50">
+        <input type="file" name="planilha" accept=".xlsx,.csv"
+               class="hidden" onchange="document.getElementById('fn').textContent = this.files[0]?.name || ''">
+        <div class="text-slate-300">Clique para selecionar o arquivo (.xlsx ou .csv)</div>
+        <div id="fn" class="mt-2 text-sm text-emerald-300"></div>
+      </label>
+      <button class="mt-4 w-full rounded-lg bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-300">
+        Importar negociações
+      </button>
+    </form>
+
+    <p class="mt-4 text-xs leading-relaxed text-slate-600">
+      O extrato da B3 <strong>não inclui custos</strong> (corretagem/emolumentos) nem IRRF —
+      as operações entram com custo zero (aproximação). Para futuros, o preço é registrado em
+      reais (valor do contrato).
+    </p>
+  </div>
+
+  <!-- Como baixar -->
+  <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
+    <div class="font-medium text-slate-200">Como baixar na B3</div>
+    <ol class="mt-3 list-decimal space-y-2 pl-4">
+      <li>Acesse <span class="text-slate-300">investidor.b3.com.br</span> e entre com o gov.br.</li>
+      <li>Menu <span class="text-slate-300">Extratos → Negociação</span>.</li>
+      <li>Escolha o período e clique em <span class="text-slate-300">Baixar</span>.</li>
+      <li>Suba o arquivo aqui ao lado.</li>
+    </ol>
+  </div>
+</div>
+
+<!-- Conexão automática (futuro / stub) -->
+<div class="mt-6 max-w-2xl rounded-xl border border-white/10 bg-slate-900/70 p-6">
+  <div class="flex items-center gap-3">
     {% set ok = status.available and status.get('status')=='connected' %}
-    <span class="w-2.5 h-2.5 rounded-full {{ 'bg-emerald-400' if ok else 'bg-amber-400' }}"></span>
-    <span class="font-medium">{{ 'Conectado' if ok else 'Não conectado' }}</span>
+    <span class="h-2.5 w-2.5 rounded-full {{ 'bg-emerald-400' if ok else 'bg-slate-500' }}"></span>
+    <span class="font-medium text-slate-200">Sincronização automática</span>
+    <span class="rounded-full bg-white/[0.06] px-2 py-0.5 text-xs text-slate-400">em breve</span>
   </div>
-  <p class="text-sm text-slate-400 mb-5">{{ status.message }}</p>
-
-  <form method="post">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="bg-brand hover:bg-brand-dark text-slate-950 font-semibold rounded-lg px-4 py-2 text-sm
-                   {{ '' if status.available else 'opacity-60' }}">
-      {{ 'Conectar conta B3' if status.available else 'Conectar (indisponível)' }}
-    </button>
-  </form>
-
-  <div class="mt-6 pt-5 border-t border-slate-800 text-sm text-slate-400 space-y-2">
-    <div class="font-medium text-slate-200">Arquitetura pronta</div>
-    <p>O cliente <code class="text-slate-300">B3InvestidorClient</code> já expõe os pontos de extensão
-    (<code>authenticate</code>, <code>get_movements</code>) e o mapeamento <code>to_trades()</code>
-    para o modelo interno. Basta ativar quando as credenciais OAuth2 estiverem disponíveis.</p>
-    <p class="text-xs text-slate-600">Defina <code>B3_ENABLED=1</code>, <code>B3_CLIENT_ID</code> e
-    <code>B3_CLIENT_SECRET</code> no ambiente para habilitar.</p>
-  </div>
+  <p class="mt-2 text-sm text-slate-500">
+    A conexão automática (Open Finance) exige credenciais/convênio. Por ora, use a importação de
+    planilha acima — é oficial, gratuita e cobre todas as corretoras.
+  </p>
 </div>
 {% endblock %}

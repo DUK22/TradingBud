@@ -21,7 +21,7 @@ from werkzeug.utils import secure_filename
 
 from .extensions import db
 from .models import B3Connection, BrokerageNote, Trade, User
-from .services import darf_pdf, ocr, tax_engine
+from .services import b3_import, darf_pdf, ocr, tax_engine
 from .services.b3_client import B3Config, sync_status
 
 main_bp = Blueprint("main", __name__)
@@ -451,3 +451,48 @@ def b3_integration():
 
     status = sync_status(conn, cfg)
     return render_template("integrations.html", status=status, cfg=cfg)
+
+
+@main_bp.route("/integracoes/b3/importar", methods=["POST"])
+@login_required
+def b3_import_upload():
+    """Importa a planilha de Negociação da B3 (Extratos > Negociação)."""
+    file = request.files.get("planilha")
+    if not file or not file.filename:
+        flash("Selecione a planilha exportada da B3.", "error")
+        return redirect(url_for("main.b3_integration"))
+    if not file.filename.lower().endswith((".xlsx", ".csv")):
+        flash("Envie o arquivo .xlsx ou .csv exportado pela B3.", "error")
+        return redirect(url_for("main.b3_integration"))
+
+    try:
+        parsed = b3_import.parse(file.stream, file.filename)
+    except Exception as e:  # noqa: BLE001
+        flash(f"Falha ao ler a planilha: {e}", "error")
+        return redirect(url_for("main.b3_integration"))
+
+    trades = parsed["trades"]
+    if not trades:
+        flash("Nenhuma operação importada. " + " ".join(parsed["warnings"]), "warning")
+        return redirect(url_for("main.b3_integration"))
+
+    # Agrupa por (corretora, dia) -> uma nota por dia.
+    groups = defaultdict(list)
+    for t in trades:
+        groups[(t["broker"], t["trade_date"])].append(t)
+    for (broker, d), ts in groups.items():
+        note = BrokerageNote(user_id=current_user.id, broker=broker, trade_date=d, source="B3")
+        db.session.add(note)
+        db.session.flush()
+        for t in ts:
+            db.session.add(Trade(
+                user_id=current_user.id, note_id=note.id, trade_date=d,
+                asset=t["asset"], market=t["market"], side=t["side"],
+                quantity=t["quantity"], price=t["price"], gross_value=t["gross_value"]))
+    db.session.commit()
+
+    msg = f"Importação concluída: {len(trades)} negócio(s) em {len(groups)} dia(s)."
+    if parsed["warnings"]:
+        msg += " " + " ".join(parsed["warnings"])
+    flash(msg + " Atenção: o extrato da B3 não traz custos/IRRF.", "success")
+    return redirect(url_for("main.trades"))
