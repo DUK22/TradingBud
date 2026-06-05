@@ -1,9 +1,9 @@
 """Blueprint de autenticação (multi-usuário / SaaS)."""
-from flask import Blueprint, render_template, redirect, url_for, flash, request
-from flask_login import login_user, logout_user, login_required, current_user
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required, login_user, logout_user
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField
-from wtforms.validators import DataRequired, Email, Length, EqualTo
+from wtforms import BooleanField, PasswordField, StringField
+from wtforms.validators import DataRequired, Email, EqualTo, Length
 
 from .extensions import db, limiter
 from .models import User

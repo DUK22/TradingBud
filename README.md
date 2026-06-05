@@ -90,14 +90,19 @@ Já incluído: proteção **CSRF** em todas as rotas POST, **rate limiting** no
 login/cadastro, cabeçalhos de segurança (**CSP, HSTS, X-Frame-Options,
 X-Content-Type-Options**) e cookies de sessão `HttpOnly`/`SameSite`.
 
-## Testes
+## Testes e lint
 
 ```bash
-python tests/test_tax_engine.py     # ou: pytest -q
+pip install -r requirements-dev.txt
+pytest            # 27 testes
+ruff check .      # lint
 ```
 
-Cobrem: preço médio ponderado, detecção de day trade, isenção de R$20k,
-alíquotas 15%/20%, compensação de prejuízo e separação das modalidades.
+Cobertura: motor fiscal (preço médio, day trade, isenção de R$20k, alíquotas
+15%/20%, compensação de prejuízo, separação das modalidades), parser OCR
+(BOVESPA e BM&F), autenticação e **isolamento de dados entre usuários**,
+filtros de formatação e o mapeamento da B3. CI roda `ruff` + `pytest` a cada
+push/PR (`.github/workflows/ci.yml`).
 
 ## Regras fiscais e simplificações (MVP)
 

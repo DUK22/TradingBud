@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
 
 try:
@@ -85,13 +85,13 @@ def value_below_label(text, label_regex):
     """Layout em grade (BM&F): rotulo numa linha, valores na linha de baixo.
     Retorna o ULTIMO valor monetario da linha seguinte (totais ficam a direita)."""
     lines = text.split("\n")
-    for i, l in enumerate(lines):
-        if re.search(label_regex, l, re.I):
+    for i, line in enumerate(lines):
+        if re.search(label_regex, line, re.I):
             if i + 1 < len(lines):
                 ms = _MONEY.findall(lines[i + 1])
                 if ms:
                     return to_decimal(ms[-1])
-            ms = _MONEY.findall(l)
+            ms = _MONEY.findall(line)
             if ms:
                 return to_decimal(ms[-1])
     return None

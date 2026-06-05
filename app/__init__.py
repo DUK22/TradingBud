@@ -5,10 +5,12 @@ blueprints (auth e main) e garante a criação do schema SQLite.
 """
 import logging
 import os
+
 from flask import Flask
 
 from config import Config, instance_dir
-from .extensions import db, login_manager, csrf, limiter
+
+from .extensions import csrf, db, limiter, login_manager
 from .utils import register_filters
 
 log = logging.getLogger(__name__)

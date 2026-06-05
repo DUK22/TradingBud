@@ -9,11 +9,11 @@ isenção de R$20k (mês com venda de ações < 20k), compensação de prejuízo
 entre meses e posições em aberto — para o dashboard nascer "vivo".
 """
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from app import create_app
 from app.extensions import db
-from app.models import User, BrokerageNote, Trade
+from app.models import BrokerageNote, Trade, User
 
 app = create_app()
 

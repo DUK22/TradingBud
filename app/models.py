@@ -9,11 +9,11 @@ Posições em aberto e apuração mensal são CALCULADAS sob demanda pelo
 tax_engine a partir das Trades — assim nunca há dado derivado desatualizado.
 Valores monetários usam Numeric(18,6) e são manipulados como Decimal.
 """
-from datetime import datetime, date, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from .extensions import db
 
@@ -22,7 +22,7 @@ NUM = db.Numeric(18, 6)
 
 def utcnow() -> datetime:
     """Timestamp UTC timezone-aware (substitui o depreciado datetime.utcnow)."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class User(UserMixin, db.Model):

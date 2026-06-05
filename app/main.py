@@ -1,17 +1,16 @@
 """Blueprint principal: dashboard, upload/OCR, notas, apuração, posições, B3."""
 import os
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 
-from flask import (Blueprint, render_template, redirect, url_for, flash, request,
-                   current_app, abort)
-from flask_login import login_required, current_user
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
 from .extensions import db
-from .models import BrokerageNote, Trade, B3Connection
+from .models import B3Connection, BrokerageNote, Trade
 from .services import ocr, tax_engine
-from .services.b3_client import B3InvestidorClient, B3Config, sync_status
+from .services.b3_client import B3Config, sync_status
 
 main_bp = Blueprint("main", __name__)
 
@@ -114,7 +113,7 @@ def upload():
             return redirect(request.url)
 
         fname = secure_filename(file.filename) or "nota.pdf"
-        stamped = f"{current_user.id}_{datetime.now(timezone.utc):%Y%m%d%H%M%S}_{fname}"
+        stamped = f"{current_user.id}_{datetime.now(UTC):%Y%m%d%H%M%S}_{fname}"
         path = os.path.join(current_app.config["UPLOAD_FOLDER"], stamped)
         file.save(path)
 
