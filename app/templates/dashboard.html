@@ -56,6 +56,47 @@
   </div>
 </div>
 
+<!-- Métricas de performance -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+    <div class="text-xs text-slate-500 uppercase tracking-wide">Operações</div>
+    <div class="text-xl font-semibold mt-1 tabular-nums">{{ metrics.n_ops }}</div>
+    <div class="text-xs text-slate-500">fechamentos apurados</div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+    <div class="text-xs text-slate-500 uppercase tracking-wide">Taxa de acerto</div>
+    <div class="text-xl font-semibold mt-1 tabular-nums {{ 'text-emerald-400' if metrics.win_rate>=50 else 'text-slate-200' }}">{{ metrics.win_rate|pct }}</div>
+    <div class="text-xs text-slate-500">{{ metrics.wins }} de {{ metrics.n_ops }} no lucro</div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+    <div class="text-xs text-slate-500 uppercase tracking-wide">Melhor resultado</div>
+    <div class="text-xl font-semibold mt-1 tabular-nums text-emerald-400">{{ metrics.melhor|brl }}</div>
+    <div class="text-xs text-slate-500">num único fechamento</div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+    <div class="text-xs text-slate-500 uppercase tracking-wide">Pior resultado</div>
+    <div class="text-xl font-semibold mt-1 tabular-nums {{ 'text-red-400' if metrics.pior<0 else 'text-slate-200' }}">{{ metrics.pior|brl }}</div>
+    <div class="text-xs text-slate-500">num único fechamento</div>
+  </div>
+</div>
+
+<!-- Barra de isenção mensal de R$20k -->
+{% set pct = (isencao.usado / isencao.limite * 100) if isencao.limite else 0 %}
+{% set excedeu = isencao.usado > isencao.limite %}
+<div class="bg-slate-900 border border-slate-800 rounded-xl p-5 mb-6">
+  <div class="flex items-center justify-between mb-2">
+    <div class="text-sm font-medium">Isenção do mês — vendas à vista de ações</div>
+    <div class="text-xs tabular-nums {{ 'text-amber-300' if excedeu else 'text-slate-400' }}">{{ isencao.usado|brl }} de {{ isencao.limite|brl }}</div>
+  </div>
+  <div class="h-2.5 w-full rounded-full bg-slate-800 overflow-hidden">
+    <div class="h-full rounded-full {{ 'bg-amber-400' if excedeu else 'bg-emerald-500' }}" style="width: {{ [pct, 100]|min }}%"></div>
+  </div>
+  <div class="text-xs text-slate-500 mt-2">
+    {% if excedeu %}Limite ultrapassado: as vendas de ações à vista deste mês passam a ser tributadas (15%).
+    {% else %}Enquanto as vendas somarem até {{ isencao.limite|brl }} no mês, o lucro com ações à vista fica isento.{% endif %}
+  </div>
+</div>
+
 <!-- Charts -->
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
   <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 lg:col-span-2">

@@ -100,11 +100,30 @@ def dashboard():
         serie_acc.append(round(acc, 2))
     chart["acc"] = serie_acc
 
+    # Métricas de performance (cada fechamento = um day trade ou uma venda swing)
+    closed = ([r.net_result for r in result.day_results]
+              + [s.result for s in result.swing_sales])
+    n_ops = len(closed)
+    wins = sum(1 for x in closed if x > 0)
+    metrics = {
+        "n_ops": n_ops,
+        "wins": wins,
+        "win_rate": (Decimal(wins) / n_ops * 100) if n_ops else Decimal("0"),
+        "melhor": max(closed) if closed else Decimal("0"),
+        "pior": min(closed) if closed else Decimal("0"),
+    }
+    # Isenção mensal de R$20k (vendas à vista de ações no swing, mês corrente)
+    isencao = {
+        "usado": cur.equity_swing_gross if cur else Decimal("0"),
+        "limite": tax_engine.ISENCAO_SWING_MENSAL,
+    }
+
     return render_template(
         "dashboard.html",
         result=result, cur=cur, patrimonio=patrimonio,
         resultado_ano=resultado_ano, imposto_ano=imposto_ano,
         ano=ano, chart=chart, n_notas=len(notes),
+        metrics=metrics, isencao=isencao,
     )
 
 
