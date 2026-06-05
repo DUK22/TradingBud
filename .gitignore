@@ -7,3 +7,7 @@ instance/
 .env
 .DS_Store
 _probe.txt
+
+# Node / build do Tailwind (o CSS gerado app/static/app.css É versionado,
+# para a app rodar sem Node; só as dependências do build ficam de fora)
+node_modules/

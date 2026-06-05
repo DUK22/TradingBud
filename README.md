@@ -111,11 +111,52 @@ Em **produção**, aplique as migrações no deploy (`flask db upgrade`) e defin
 `SKIP_SCHEMA_INIT=1` para desligar o auto-upgrade no startup (evita corrida
 entre múltiplos workers).
 
+## Front-end (Tailwind)
+
+O CSS é **gerado localmente** (sem CDN). Para regenerar após mexer nos
+templates (precisa de Node):
+
+```bash
+npm install
+npm run build:css      # gera app/static/app.css (use watch:css em dev)
+```
+
+O `app/static/app.css` já vem versionado, então a app roda sem Node. No Docker,
+o CSS é reconstruído no build (estágio Node).
+
+## Produção (WSGI / Docker)
+
+A app **não** deve usar o servidor de desenvolvimento em produção. Use um WSGI:
+
+```bash
+pip install -r requirements.txt -r requirements-prod.txt
+# Linux:
+gunicorn -b 0.0.0.0:8000 -w 3 wsgi:app
+# Windows:
+waitress-serve --listen=0.0.0.0:8000 wsgi:app
+```
+
+**Docker** (build multi-stage: compila o CSS e roda gunicorn):
+
+```bash
+docker build -t ir-traders .
+docker run -p 8000:8000 \
+  -e SECRET_KEY="$(python -c 'import secrets;print(secrets.token_hex(32))')" \
+  -e CPF_ENC_KEY="$(python -c 'from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())')" \
+  ir-traders
+```
+
+O container roda `flask db upgrade` no start (entrypoint) e sobe o gunicorn.
+Como `FLASK_ENV=production`, `SECRET_KEY` e `CPF_ENC_KEY` são **obrigatórias** —
+sem elas o container falha de propósito. Logs vão para stdout (`LOG_LEVEL`
+configurável). Para persistir dados, monte um volume em `/app/instance` ou use
+`DATABASE_URL` (PostgreSQL).
+
 ## Testes e lint
 
 ```bash
 pip install -r requirements-dev.txt
-pytest            # 27 testes
+pytest            # 31 testes
 ruff check .      # lint
 ```
 

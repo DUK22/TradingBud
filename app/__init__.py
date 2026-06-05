@@ -4,6 +4,7 @@ Cria a app Flask, inicializa extensões (SQLAlchemy, Login), registra os
 blueprints (auth e main) e garante a criação do schema SQLite.
 """
 import logging
+import logging.config
 import os
 
 from flask import Flask
@@ -18,11 +19,28 @@ log = logging.getLogger(__name__)
 MIGRATIONS_DIR = os.path.join(basedir, "migrations")
 
 
-# Content-Security-Policy: a UI usa Tailwind e Chart.js via CDN, então liberamos
-# esses hosts. Ao migrar para assets locais (build do Tailwind), troque por 'self'.
+def _configure_logging():
+    """Logging centralizado p/ stdout (LOG_LEVEL configurável). Sob gunicorn,
+    os logs da app saem junto com os do servidor — prontos p/ agregadores."""
+    level = os.environ.get("LOG_LEVEL", "INFO").upper()
+    logging.config.dictConfig({
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {"format": "%(asctime)s %(levelname)s [%(name)s] %(message)s"},
+        },
+        "handlers": {
+            "console": {"class": "logging.StreamHandler", "formatter": "default"},
+        },
+        "root": {"level": level, "handlers": ["console"]},
+    })
+
+
+# Content-Security-Policy: o CSS (Tailwind) agora é servido localmente ('self');
+# resta o Chart.js via jsdelivr. 'unsafe-inline' cobre o script de gráfico inline.
 _CSP = (
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data:; "
     "connect-src 'self'; "
@@ -73,6 +91,9 @@ def _init_schema(app):
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    if not app.config.get("TESTING"):
+        _configure_logging()
 
     # Garante diretórios de instância/uploads
     os.makedirs(instance_dir, exist_ok=True)
