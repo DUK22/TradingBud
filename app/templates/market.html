@@ -1,16 +1,29 @@
 {% extends "base.html" %}
 {% block title %}Mercado · IR Traders{% endblock %}
+
 {% block content %}
+{% macro tvwidget(name, config, height) -%}
+<div class="tradingview-widget-container" style="height:{{ height }};width:100%">
+  <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
+  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-{{ name }}.js" async>
+  {{ config|safe }}
+  </script>
+</div>
+{%- endmacro %}
+
+<!-- Fita de cotações -->
+<div class="mb-4 overflow-hidden rounded-xl border border-white/10 bg-slate-900/70">
+  {{ tvwidget('ticker-tape', '{"symbols":[{"proName":"BMFBOVESPA:IBOV","title":"Ibovespa"},{"proName":"FX_IDC:USDBRL","title":"Dólar"},{"proName":"BMFBOVESPA:PETR4","title":"PETR4"},{"proName":"BMFBOVESPA:VALE3","title":"VALE3"},{"proName":"BMFBOVESPA:ITUB4","title":"ITUB4"},{"proName":"BINANCE:BTCBRL","title":"Bitcoin"}],"showSymbolLogo":true,"colorTheme":"dark","isTransparent":true,"displayMode":"adaptive","locale":"br"}', '46px') }}
+</div>
+
 <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
   <div>
     <h1 class="text-2xl font-semibold tracking-tight text-white">Mercado</h1>
-    <p class="mt-1 text-sm text-slate-500">
-      Gráfico em tempo real — desenhe linhas, use indicadores e crie alarmes.
-    </p>
+    <p class="mt-1 text-sm text-slate-500">Gráfico em tempo real, análise técnica, notícias e calculadoras.</p>
   </div>
   <form method="get" class="flex gap-2">
-    <input name="symbol" value="{{ symbol }}" placeholder="PETR4, WINFUT, BMFBOVESPA:VALE3…"
-           class="w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm uppercase text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none sm:w-72">
+    <input name="symbol" value="{{ symbol }}" placeholder="PETR4, WINFUT…"
+           class="w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm uppercase text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none sm:w-64">
     <button class="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">Abrir</button>
   </form>
 </div>
@@ -18,23 +31,125 @@
 <!-- Atalhos -->
 <div class="mb-4 flex flex-wrap gap-2">
   {% for sym, label in carteira %}
-    <a href="{{ url_for('main.market', symbol=sym) }}"
-       class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-300 hover:bg-emerald-400/20">★ {{ label }}</a>
+    <a href="{{ url_for('main.market', symbol=sym) }}" class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-300 hover:bg-emerald-400/20">★ {{ label }}</a>
   {% endfor %}
   {% for sym, label in favoritos %}
-    <a href="{{ url_for('main.market', symbol=sym) }}"
-       class="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-slate-400 hover:bg-white/[0.06] hover:text-slate-200">{{ label }}</a>
+    <a href="{{ url_for('main.market', symbol=sym) }}" class="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-slate-400 hover:bg-white/[0.06] hover:text-slate-200">{{ label }}</a>
   {% endfor %}
 </div>
 
-<div class="overflow-hidden rounded-xl border border-white/10 bg-slate-900/70 shadow-sm">
-  <div id="tv_chart" style="height:72vh;min-height:460px;width:100%"></div>
+{% if pos_atual %}
+<div class="mb-4 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] p-4" id="pos-panel"
+     data-asset="{{ pos_atual.asset }}" data-avg="{{ pos_atual.avg_price }}" data-qty="{{ pos_atual.qty }}">
+  <div class="text-xs uppercase tracking-wider text-emerald-300/80">Sua posição em {{ pos_atual.asset }}</div>
+  <div class="mt-1 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
+    <span class="text-slate-400">Preço médio <strong class="text-white">{{ pos_atual.avg_price|brl }}</strong></span>
+    <span class="text-slate-400">Quantidade <strong class="text-white">{{ pos_atual.qty|num(0) }}</strong></span>
+    <span class="text-slate-400">Custo <strong class="text-white">{{ pos_atual.market_cost|brl }}</strong></span>
+    <span id="pos-live" class="text-slate-500">cotação ao vivo no quadro abaixo →</span>
+  </div>
+</div>
+{% endif %}
+
+<!-- Gráfico + análise técnica -->
+<div class="grid gap-4 lg:grid-cols-3">
+  <div class="overflow-hidden rounded-xl border border-white/10 bg-slate-900/70 lg:col-span-2">
+    <div id="tv_chart" style="height:62vh;min-height:420px;width:100%"></div>
+  </div>
+  <div class="space-y-4">
+    <div class="overflow-hidden rounded-xl border border-white/10 bg-slate-900/70">
+      {{ tvwidget('technical-analysis', '{"interval":"1D","width":"100%","isTransparent":true,"height":"100%","symbol":"' ~ symbol ~ '","showIntervalTabs":true,"locale":"br","colorTheme":"dark"}', '300px') }}
+    </div>
+    <div class="overflow-hidden rounded-xl border border-white/10 bg-slate-900/70">
+      {{ tvwidget('symbol-info', '{"symbol":"' ~ symbol ~ '","width":"100%","locale":"br","colorTheme":"dark","isTransparent":true}', '200px') }}
+    </div>
+  </div>
 </div>
 
-<p class="mt-3 text-xs leading-relaxed text-slate-600">
-  Cotações fornecidas pelo TradingView (algumas em tempo real, outras com atraso, conforme a bolsa).
-  Para salvar desenhos e receber <strong>alarmes</strong>, entre na sua conta TradingView pelo próprio gráfico.
-  Nada disto é recomendação de investimento.
+<!-- Calculadoras -->
+<div class="mt-6 rounded-xl border border-white/10 bg-slate-900/70 p-5">
+  <div class="mb-4 text-sm font-medium text-white">Calculadoras do trader</div>
+  <div class="grid gap-5 lg:grid-cols-3">
+    <!-- Position sizing -->
+    <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+      <div class="text-sm font-medium text-slate-200">Quantos contratos</div>
+      <p class="mt-1 text-xs text-slate-500">Quanto arriscar e o stop → nº de contratos.</p>
+      <div class="mt-3 space-y-2 text-sm">
+        <label class="block">Contrato
+          <select id="ps-contract" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"></select>
+        </label>
+        <label class="block">Risco máximo (R$)
+          <input id="ps-risk" type="number" value="200" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"></label>
+        <label class="block">Stop (pontos)
+          <input id="ps-stop" type="number" value="150" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"></label>
+      </div>
+      <div id="ps-out" class="mt-3 rounded-lg bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-300"></div>
+    </div>
+    <!-- Stop/Gain pontos -> R$ -->
+    <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+      <div class="text-sm font-medium text-slate-200">Pontos → reais</div>
+      <p class="mt-1 text-xs text-slate-500">Quanto vale uma variação em pontos.</p>
+      <div class="mt-3 space-y-2 text-sm">
+        <label class="block">Contrato
+          <select id="pt-contract" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"></select>
+        </label>
+        <label class="block">Pontos
+          <input id="pt-points" type="number" value="100" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"></label>
+        <label class="block">Contratos
+          <input id="pt-qty" type="number" value="1" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"></label>
+      </div>
+      <div id="pt-out" class="mt-3 rounded-lg bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-300"></div>
+    </div>
+    <!-- IR na venda -->
+    <div class="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+      <div class="text-sm font-medium text-slate-200">IR na venda</div>
+      <p class="mt-1 text-xs text-slate-500">Lucro e imposto estimado de uma venda.</p>
+      <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+        <label class="block">Preço médio
+          <input id="ir-avg" type="number" value="{{ pos_atual.avg_price if pos_atual else '' }}" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"></label>
+        <label class="block">Preço venda
+          <input id="ir-sell" type="number" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"></label>
+        <label class="block">Quantidade
+          <input id="ir-qty" type="number" value="{{ pos_atual.qty if pos_atual else 100 }}" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"></label>
+        <label class="block">Tipo
+          <select id="ir-type" class="mt-1 w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
+            <option value="0.15">Swing 15%</option><option value="0.20">Day 20%</option>
+          </select>
+        </label>
+      </div>
+      <div id="ir-out" class="mt-3 rounded-lg bg-amber-400/10 px-3 py-2 text-sm font-semibold text-amber-300"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Calendário + Notícias -->
+<div class="mt-6 grid gap-4 lg:grid-cols-2">
+  <div class="overflow-hidden rounded-xl border border-white/10 bg-slate-900/70">
+    <div class="border-b border-white/10 px-4 py-2.5 text-sm font-medium text-white">Calendário econômico</div>
+    {{ tvwidget('events', '{"colorTheme":"dark","isTransparent":true,"width":"100%","height":"100%","locale":"br","importanceFilter":"0,1","countryFilter":"br,us"}', '420px') }}
+  </div>
+  <div class="overflow-hidden rounded-xl border border-white/10 bg-slate-900/70">
+    <div class="border-b border-white/10 px-4 py-2.5 text-sm font-medium text-white">Notícias</div>
+    {{ tvwidget('timeline', '{"feedMode":"symbol","symbol":"' ~ symbol ~ '","isTransparent":true,"displayMode":"regular","width":"100%","height":"100%","colorTheme":"dark","locale":"br"}', '420px') }}
+  </div>
+</div>
+
+<!-- Panorama + maiores altas/baixas -->
+<div class="mt-6 grid gap-4 lg:grid-cols-2">
+  <div class="overflow-hidden rounded-xl border border-white/10 bg-slate-900/70">
+    <div class="border-b border-white/10 px-4 py-2.5 text-sm font-medium text-white">Panorama</div>
+    {{ tvwidget('market-overview', '{"colorTheme":"dark","dateRange":"1D","showChart":true,"locale":"br","isTransparent":true,"showSymbolLogo":true,"width":"100%","height":"100%","tabs":[{"title":"Índices","symbols":[{"s":"BMFBOVESPA:IBOV","d":"Ibovespa"},{"s":"FX_IDC:USDBRL","d":"Dólar"},{"s":"TVC:DXY","d":"DXY"}]},{"title":"Ações","symbols":[{"s":"BMFBOVESPA:PETR4"},{"s":"BMFBOVESPA:VALE3"},{"s":"BMFBOVESPA:ITUB4"},{"s":"BMFBOVESPA:BBAS3"},{"s":"BMFBOVESPA:B3SA3"}]}]}', '420px') }}
+  </div>
+  <div class="overflow-hidden rounded-xl border border-white/10 bg-slate-900/70">
+    <div class="border-b border-white/10 px-4 py-2.5 text-sm font-medium text-white">Maiores altas e baixas</div>
+    {{ tvwidget('hotlists', '{"colorTheme":"dark","dateRange":"1D","exchange":"BMFBOVESPA","showChart":false,"locale":"br","isTransparent":true,"width":"100%","height":"100%"}', '420px') }}
+  </div>
+</div>
+
+<p class="mt-4 text-xs leading-relaxed text-slate-600">
+  Cotações e dados pelo TradingView (alguns em tempo real, outros com atraso conforme a bolsa).
+  Para salvar desenhos e alarmes, entre na sua conta TradingView pelo gráfico. As calculadoras são
+  estimativas e não consideram corretagem/emolumentos. Nada aqui é recomendação de investimento.
 </p>
 {% endblock %}
 
@@ -42,21 +157,59 @@
 <script src="https://s3.tradingview.com/tv.js"></script>
 <script>
   new TradingView.widget({
-    container_id: "tv_chart",
-    symbol: {{ symbol|tojson }},
-    interval: "D",
-    timezone: "America/Sao_Paulo",
-    theme: "dark",
-    style: "1",
-    locale: "br",
-    autosize: true,
-    hide_side_toolbar: false,     // mostra as ferramentas de desenho
-    allow_symbol_change: true,    // permite trocar de ativo dentro do gráfico
-    withdateranges: true,
-    details: true,
-    studies: ["Volume@tv-basicstudies"],
-    backgroundColor: "rgba(11,15,20,1)",
-    gridColor: "rgba(148,163,184,0.08)",
+    container_id: "tv_chart", symbol: {{ symbol|tojson }}, interval: "D",
+    timezone: "America/Sao_Paulo", theme: "dark", style: "1", locale: "br",
+    autosize: true, hide_side_toolbar: false, allow_symbol_change: true,
+    withdateranges: true, details: true, studies: ["Volume@tv-basicstudies"],
+    backgroundColor: "rgba(11,15,20,1)", gridColor: "rgba(148,163,184,0.08)",
   });
+
+  // ---- Calculadoras ----
+  const PV = {{ point_values|tojson }};
+  const brl = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
+  function fillContracts(sel) {
+    Object.keys(PV).forEach(k => {
+      const o = document.createElement('option');
+      o.value = k; o.textContent = `${k} (R$ ${PV[k].toLocaleString('pt-BR')}/pt)`;
+      sel.appendChild(o);
+    });
+  }
+  const $ = id => document.getElementById(id);
+
+  // 1) Position sizing
+  function calcPS() {
+    const pv = PV[$('ps-contract').value] || 0;
+    const risk = parseFloat($('ps-risk').value) || 0;
+    const stop = parseFloat($('ps-stop').value) || 0;
+    const perContract = stop * pv;
+    if (perContract <= 0) { $('ps-out').textContent = 'Informe o stop.'; return; }
+    const n = Math.floor(risk / perContract);
+    $('ps-out').textContent = n > 0
+      ? `${n} contrato(s) · risco real ${brl(n*perContract)}`
+      : `Risco insuficiente p/ 1 contrato (${brl(perContract)}/contrato)`;
+  }
+  // 2) Pontos -> R$
+  function calcPT() {
+    const pv = PV[$('pt-contract').value] || 0;
+    const pts = parseFloat($('pt-points').value) || 0;
+    const qty = parseFloat($('pt-qty').value) || 0;
+    $('pt-out').textContent = `${brl(pts*pv*qty)} (${qty}× contrato)`;
+  }
+  // 3) IR na venda
+  function calcIR() {
+    const avg = parseFloat($('ir-avg').value) || 0;
+    const sell = parseFloat($('ir-sell').value) || 0;
+    const qty = parseFloat($('ir-qty').value) || 0;
+    const aliq = parseFloat($('ir-type').value) || 0.15;
+    const lucro = (sell - avg) * qty;
+    const imposto = lucro > 0 ? lucro * aliq : 0;
+    $('ir-out').innerHTML = `Resultado ${brl(lucro)} · Imposto ${brl(imposto)}`;
+  }
+
+  fillContracts($('ps-contract')); fillContracts($('pt-contract'));
+  ['ps-contract','ps-risk','ps-stop'].forEach(id => $(id).addEventListener('input', calcPS));
+  ['pt-contract','pt-points','pt-qty'].forEach(id => $(id).addEventListener('input', calcPT));
+  ['ir-avg','ir-sell','ir-qty','ir-type'].forEach(id => $(id).addEventListener('input', calcIR));
+  calcPS(); calcPT(); calcIR();
 </script>
 {% endblock %}

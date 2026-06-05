@@ -21,7 +21,7 @@ from werkzeug.utils import secure_filename
 
 from .extensions import db
 from .models import B3Connection, BrokerageNote, Trade, User
-from .services import b3_import, darf_pdf, ocr, tax_engine
+from .services import b3_import, contracts, darf_pdf, ocr, tax_engine
 from .services.b3_client import B3Config, sync_status
 
 main_bp = Blueprint("main", __name__)
@@ -153,8 +153,13 @@ def market():
         ("BMFBOVESPA:WIN1!", "WIN (mini índice)"),
         ("BMFBOVESPA:WDO1!", "WDO (mini dólar)"),
     ]
-    return render_template("market.html", symbol=symbol,
-                           carteira=carteira, favoritos=favoritos)
+    # Para as calculadoras (valor do ponto) e posição no ativo atual.
+    point_values = {k: float(v) for k, v in contracts.POINT_VALUES.items()}
+    asset_atual = symbol.split(":")[-1]
+    pos_atual = next((p for p in result.positions if p.asset == asset_atual), None)
+    return render_template(
+        "market.html", symbol=symbol, carteira=carteira, favoritos=favoritos,
+        point_values=point_values, pos_atual=pos_atual)
 
 
 # --------------------------------------------------------------------------- #
