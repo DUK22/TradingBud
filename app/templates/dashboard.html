@@ -52,12 +52,18 @@
 <!-- Charts -->
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
   <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 lg:col-span-2">
-    <div class="text-sm font-medium mb-4">Resultado mensal (Day x Swing)</div>
-    <canvas id="chartResult" height="120"></canvas>
+    <div class="flex items-center justify-between mb-4">
+      <div class="text-sm font-medium">Resultado mensal (Day × Swing)</div>
+      <div class="text-xs text-slate-500">valores líquidos · R$</div>
+    </div>
+    <div style="position:relative;height:300px"><canvas id="chartResult"></canvas></div>
   </div>
   <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-    <div class="text-sm font-medium mb-4">Resultado acumulado</div>
-    <canvas id="chartAcc" height="200"></canvas>
+    <div class="flex items-center justify-between mb-4">
+      <div class="text-sm font-medium">Resultado acumulado</div>
+      <div class="text-xs text-slate-500">no período</div>
+    </div>
+    <div style="position:relative;height:300px"><canvas id="chartAcc"></canvas></div>
   </div>
 </div>
 
@@ -86,24 +92,62 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
   const C = {{ chart|tojson }};
-  const grid = 'rgba(148,163,184,0.12)', tick = '#94a3b8';
-  const baseOpts = { plugins:{legend:{labels:{color:tick}}},
-    scales:{x:{ticks:{color:tick},grid:{color:grid}},y:{ticks:{color:tick},grid:{color:grid}}} };
+  const tick = '#94a3b8', grid = 'rgba(148,163,184,0.10)';
 
+  Chart.defaults.font.family =
+    "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+  Chart.defaults.color = tick;
+
+  const fmtBRL  = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
+  const fmtAxis = v => new Intl.NumberFormat('pt-BR',{notation:'compact',maximumFractionDigits:1}).format(v||0);
+
+  // gradiente vertical reutilizável (claro no topo -> escuro embaixo)
+  function vGrad(ctx, area, top, bottom) {
+    if (!area) return top;
+    const g = ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    g.addColorStop(0, top); g.addColorStop(1, bottom);
+    return g;
+  }
+  const fill = (c1, c2) => (c) => {
+    const {ctx, chartArea} = c.chart; return vGrad(ctx, chartArea, c1, c2);
+  };
+
+  const tooltip = {
+    backgroundColor:'#0f172a', borderColor:'#1e293b', borderWidth:1,
+    titleColor:'#e2e8f0', bodyColor:'#cbd5e1', padding:10, cornerRadius:8,
+    usePointStyle:true,
+    callbacks:{ label:(i)=>`  ${i.dataset.label}: ${fmtBRL(i.parsed.y)}` },
+  };
+  const yAxis = { ticks:{color:tick, callback:fmtAxis}, grid:{color:grid, drawBorder:false},
+                  border:{display:false} };
+  const xAxis = { ticks:{color:tick}, grid:{display:false}, border:{display:false} };
+  const legend = { labels:{color:'#cbd5e1', usePointStyle:true, pointStyle:'rectRounded',
+                           boxWidth:10, padding:16} };
+
+  // --- Resultado mensal: barras Day/Swing agrupadas + linha de Imposto ---
   new Chart(document.getElementById('chartResult'), {
-    type:'bar',
     data:{ labels:C.labels, datasets:[
-      {label:'Day Trade', data:C.day, backgroundColor:'#38bdf8'},
-      {label:'Swing Trade', data:C.swing, backgroundColor:'#10b981'} ]},
-    options: baseOpts
+      { type:'bar', label:'Day Trade', data:C.day, borderRadius:6,
+        maxBarThickness:34, backgroundColor:fill('#7dd3fc','#0ea5e9') },
+      { type:'bar', label:'Swing Trade', data:C.swing, borderRadius:6,
+        maxBarThickness:34, backgroundColor:fill('#6ee7b7','#059669') },
+      { type:'line', label:'Imposto', data:C.tax, borderColor:'#fbbf24',
+        backgroundColor:'#fbbf24', borderWidth:2, pointRadius:0,
+        pointHoverRadius:4, tension:.35 },
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{ legend, tooltip }, scales:{ x:xAxis, y:yAxis } }
   });
 
+  // --- Acumulado: área com gradiente, linha suave, pontos só no hover ---
   new Chart(document.getElementById('chartAcc'), {
     type:'line',
     data:{ labels:C.labels, datasets:[
-      {label:'Acumulado', data:C.acc, borderColor:'#10b981',
-       backgroundColor:'rgba(16,185,129,0.15)', fill:true, tension:.3} ]},
-    options: baseOpts
+      { label:'Acumulado', data:C.acc, borderColor:'#34d399', borderWidth:2,
+        fill:true, tension:.35, pointRadius:0, pointHoverRadius:4,
+        backgroundColor:fill('rgba(16,185,129,0.35)','rgba(16,185,129,0)') } ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip }, scales:{ x:xAxis, y:yAxis } }
   });
 </script>
 {% endif %}
