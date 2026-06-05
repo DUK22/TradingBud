@@ -13,6 +13,7 @@
   <p class="text-sm text-slate-400 mb-5">{{ status.message }}</p>
 
   <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="bg-brand hover:bg-brand-dark text-slate-950 font-semibold rounded-lg px-4 py-2 text-sm
                    {{ '' if status.available else 'opacity-60' }}">
       {{ 'Conectar conta B3' if status.available else 'Conectar (indisponível)' }}

@@ -9,15 +9,21 @@ Posições em aberto e apuração mensal são CALCULADAS sob demanda pelo
 tax_engine a partir das Trades — assim nunca há dado derivado desatualizado.
 Valores monetários usam Numeric(18,6) e são manipulados como Decimal.
 """
-from datetime import datetime, date
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
+from .crypto import EncryptedString
 from .extensions import db
 
 NUM = db.Numeric(18, 6)
+
+
+def utcnow() -> datetime:
+    """Timestamp UTC timezone-aware (substitui o depreciado datetime.utcnow)."""
+    return datetime.now(UTC)
 
 
 class User(UserMixin, db.Model):
@@ -27,8 +33,8 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    cpf = db.Column(db.String(14))  # usado na futura integração B3
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    cpf = db.Column(EncryptedString())  # criptografado em repouso (LGPD)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     notes = db.relationship(
         "BrokerageNote", backref="user", lazy=True, cascade="all, delete-orphan"
@@ -85,7 +91,7 @@ class BrokerageNote(db.Model):
     net_value = db.Column(NUM, default=0)         # líquido a receber/pagar
     filename = db.Column(db.String(255))
     raw_text = db.Column(db.Text)                 # texto extraído (auditoria)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     trades = db.relationship(
         "Trade", backref="note", lazy=True, cascade="all, delete-orphan"
@@ -114,7 +120,7 @@ class Trade(db.Model):
     quantity = db.Column(NUM, nullable=False)
     price = db.Column(NUM, nullable=False)
     gross_value = db.Column(NUM, nullable=False)                   # quantidade * preço
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     def __repr__(self):
         return f"<Trade {self.side} {self.quantity} {self.asset} @ {self.price}>"

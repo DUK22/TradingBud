@@ -1,0 +1,8 @@
+# Dependências de produção (servidor WSGI). Em cima das de runtime:
+#   pip install -r requirements.txt -r requirements-prod.txt
+-r requirements.txt
+
+# Linux / Docker:
+gunicorn==23.0.0
+# Windows (alternativa pura-Python ao gunicorn):
+waitress==3.0.0

@@ -4,14 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}IR Traders{% endblock %}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { theme: { extend: { colors: {
-      brand: { DEFAULT: '#10b981', dark: '#059669' } } } } };
-  </script>
-  <style>
-    body { -webkit-font-smoothing: antialiased; }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
   {% block head %}{% endblock %}
 </head>
 <body class="bg-slate-950 text-slate-200 min-h-screen">
@@ -48,6 +41,7 @@
     <div class="border-t border-slate-800 pt-3 mt-3">
       <div class="text-sm text-slate-300 px-3 truncate">{{ current_user.name }}</div>
       <div class="text-xs text-slate-500 px-3 truncate mb-2">{{ current_user.email }}</div>
+      <a href="{{ url_for('main.account') }}" class="block px-3 py-2 text-sm text-slate-400 hover:text-slate-200">Minha conta</a>
       <a href="{{ url_for('auth.logout') }}" class="block px-3 py-2 text-sm text-slate-400 hover:text-red-400">Sair</a>
     </div>
   </aside>

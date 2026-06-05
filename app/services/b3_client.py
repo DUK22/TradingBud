@@ -28,7 +28,7 @@ class B3Config:
     enabled: bool = False
 
     @classmethod
-    def from_app_config(cls, config) -> "B3Config":
+    def from_app_config(cls, config) -> B3Config:
         return cls(
             base_url=config.get("B3_API_BASE_URL", ""),
             client_id=config.get("B3_CLIENT_ID", ""),
@@ -48,7 +48,7 @@ class B3InvestidorClient:
         self.cfg = cfg
 
     @classmethod
-    def from_config(cls, app_config) -> "B3InvestidorClient":
+    def from_config(cls, app_config) -> B3InvestidorClient:
         return cls(B3Config.from_app_config(app_config))
 
     # --- A IMPLEMENTAR quando o acesso oficial estiver disponível ---

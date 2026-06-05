@@ -1,0 +1,16 @@
+{# Controles de paginação. Espera a variável `pagination` (Flask-SQLAlchemy). #}
+<nav class="flex items-center justify-between mt-4 text-sm text-slate-400">
+  <span>{{ pagination.total }} no total · página {{ pagination.page }} de {{ pagination.pages }}</span>
+  {% if pagination.pages > 1 %}
+  <div class="flex gap-1">
+    {% if pagination.has_prev %}
+      <a href="{{ url_for(request.endpoint, page=pagination.prev_num) }}"
+         class="px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800">‹ Anterior</a>
+    {% endif %}
+    {% if pagination.has_next %}
+      <a href="{{ url_for(request.endpoint, page=pagination.next_num) }}"
+         class="px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800">Próxima ›</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</nav>

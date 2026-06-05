@@ -16,10 +16,10 @@ a conferência de um contador. Regras simplificadas estão sinalizadas no códig
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 D0 = Decimal("0")
 CENT = Decimal("0.01")
@@ -188,20 +188,20 @@ def split_day_swing(legs) -> tuple:
     day_results, swing_legs = [], []
 
     for (asset, d), group in groups.items():
-        buys = [l for l in group if l.side == "C"]
-        sells = [l for l in group if l.side == "V"]
-        buy_qty = sum((l.qty for l in buys), D0)
-        sell_qty = sum((l.qty for l in sells), D0)
+        buys = [lg for lg in group if lg.side == "C"]
+        sells = [lg for lg in group if lg.side == "V"]
+        buy_qty = sum((lg.qty for lg in buys), D0)
+        sell_qty = sum((lg.qty for lg in sells), D0)
         dt_qty = min(buy_qty, sell_qty)
-        group_costs = sum((l.costs for l in group), D0)
+        group_costs = sum((lg.costs for lg in group), D0)
         market = group[0].market
 
         if dt_qty <= 0:
             swing_legs.extend(group)
             continue
 
-        buy_val = sum((l.qty * l.price for l in buys), D0)
-        sell_val = sum((l.qty * l.price for l in sells), D0)
+        buy_val = sum((lg.qty * lg.price for lg in buys), D0)
+        sell_val = sum((lg.qty * lg.price for lg in sells), D0)
         avg_buy = buy_val / buy_qty
         avg_sell = sell_val / sell_qty
 
@@ -245,7 +245,7 @@ def run_positions(swing_legs) -> tuple:
     positions: dict = {}
     swing_sales = []
 
-    for leg in sorted(swing_legs, key=lambda l: (l.trade_date, 0 if l.side == "C" else 1)):
+    for leg in sorted(swing_legs, key=lambda lg: (lg.trade_date, 0 if lg.side == "C" else 1)):
         pos = positions.get(leg.asset)
         if pos is None:
             pos = Position(asset=leg.asset, qty=D0, avg_price=D0, total_cost=D0, market=leg.market)

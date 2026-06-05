@@ -67,20 +67,104 @@ ir-traders/
 
 ```bash
 pip install -r requirements.txt
+cp .env.example .env    # ajuste SECRET_KEY etc. (opcional em dev)
 python seed.py          # opcional: cria dados de demonstração
 python run.py           # http://127.0.0.1:5000
 ```
 
 **Login de demonstração:** `demo@trader.com` / `demo1234`
 
-## Testes
+### Configuração / segurança
+
+Variáveis de ambiente (veja `.env.example`):
+
+| Variável | Padrão | Observação |
+|----------|--------|------------|
+| `SECRET_KEY` | gerada em dev | **obrigatória** quando `FLASK_ENV=production` |
+| `CPF_ENC_KEY` | fallback dev | chave Fernet; **obrigatória** em produção (CPF criptografado) |
+| `FLASK_ENV` | `development` | em `production` liga cookies `Secure`/HSTS |
+| `FLASK_DEBUG` | `0` | `1` só em dev (o debugger expõe console RCE) |
+| `DATABASE_URL` | SQLite local | ex.: `postgresql+psycopg2://...` |
+| `RATELIMIT_STORAGE_URI` | `memory://` | use Redis em produção (múltiplos workers) |
+
+Já incluído: proteção **CSRF** em todas as rotas POST, **rate limiting** no
+login/cadastro, cabeçalhos de segurança (**CSP, HSTS, X-Frame-Options,
+X-Content-Type-Options**) e cookies de sessão `HttpOnly`/`SameSite`.
+
+**LGPD:** o CPF é **criptografado em repouso** (Fernet) de forma transparente,
+e em *Minha conta* o usuário pode **exportar** todos os seus dados (JSON) ou
+**excluir** a conta com remoção em cascata (notas, negócios e integrações).
+
+### Banco de dados e migrações (Alembic)
+
+O schema é versionado com **Flask-Migrate/Alembic** (pasta `migrations/`). Em
+dev, a app aplica as migrações automaticamente no startup. Para evoluir o
+schema após alterar os modelos:
 
 ```bash
-python tests/test_tax_engine.py     # ou: pytest -q
+export FLASK_APP=run.py
+flask db migrate -m "descrição da mudança"   # gera a migração
+flask db upgrade                              # aplica
 ```
 
-Cobrem: preço médio ponderado, detecção de day trade, isenção de R$20k,
-alíquotas 15%/20%, compensação de prejuízo e separação das modalidades.
+Em **produção**, aplique as migrações no deploy (`flask db upgrade`) e defina
+`SKIP_SCHEMA_INIT=1` para desligar o auto-upgrade no startup (evita corrida
+entre múltiplos workers).
+
+## Front-end (Tailwind)
+
+O CSS é **gerado localmente** (sem CDN). Para regenerar após mexer nos
+templates (precisa de Node):
+
+```bash
+npm install
+npm run build:css      # gera app/static/app.css (use watch:css em dev)
+```
+
+O `app/static/app.css` já vem versionado, então a app roda sem Node. No Docker,
+o CSS é reconstruído no build (estágio Node).
+
+## Produção (WSGI / Docker)
+
+A app **não** deve usar o servidor de desenvolvimento em produção. Use um WSGI:
+
+```bash
+pip install -r requirements.txt -r requirements-prod.txt
+# Linux:
+gunicorn -b 0.0.0.0:8000 -w 3 wsgi:app
+# Windows:
+waitress-serve --listen=0.0.0.0:8000 wsgi:app
+```
+
+**Docker** (build multi-stage: compila o CSS e roda gunicorn):
+
+```bash
+docker build -t ir-traders .
+docker run -p 8000:8000 \
+  -e SECRET_KEY="$(python -c 'import secrets;print(secrets.token_hex(32))')" \
+  -e CPF_ENC_KEY="$(python -c 'from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())')" \
+  ir-traders
+```
+
+O container roda `flask db upgrade` no start (entrypoint) e sobe o gunicorn.
+Como `FLASK_ENV=production`, `SECRET_KEY` e `CPF_ENC_KEY` são **obrigatórias** —
+sem elas o container falha de propósito. Logs vão para stdout (`LOG_LEVEL`
+configurável). Para persistir dados, monte um volume em `/app/instance` ou use
+`DATABASE_URL` (PostgreSQL).
+
+## Testes e lint
+
+```bash
+pip install -r requirements-dev.txt
+pytest            # 31 testes
+ruff check .      # lint
+```
+
+Cobertura: motor fiscal (preço médio, day trade, isenção de R$20k, alíquotas
+15%/20%, compensação de prejuízo, separação das modalidades), parser OCR
+(BOVESPA e BM&F), autenticação e **isolamento de dados entre usuários**,
+filtros de formatação e o mapeamento da B3. CI roda `ruff` + `pytest` a cada
+push/PR (`.github/workflows/ci.yml`).
 
 ## Regras fiscais e simplificações (MVP)
 

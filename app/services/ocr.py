@@ -10,15 +10,18 @@ Fluxo:
 """
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
 
 try:
     import pdfplumber
 except ImportError:
     pdfplumber = None
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -85,13 +88,13 @@ def value_below_label(text, label_regex):
     """Layout em grade (BM&F): rotulo numa linha, valores na linha de baixo.
     Retorna o ULTIMO valor monetario da linha seguinte (totais ficam a direita)."""
     lines = text.split("\n")
-    for i, l in enumerate(lines):
-        if re.search(label_regex, l, re.I):
+    for i, line in enumerate(lines):
+        if re.search(label_regex, line, re.I):
             if i + 1 < len(lines):
                 ms = _MONEY.findall(lines[i + 1])
                 if ms:
                     return to_decimal(ms[-1])
-            ms = _MONEY.findall(l)
+            ms = _MONEY.findall(line)
             if ms:
                 return to_decimal(ms[-1])
     return None
@@ -302,6 +305,13 @@ def parse_note(text):
     note = parser.parse(text)
     if getattr(parser, "broker_name", "SINACOR") != "SINACOR":
         note.broker = parser.broker_name
+    # Visibilidade p/ diagnóstico/calibração (antes as falhas eram silenciosas).
+    if note.warnings:
+        log.warning("OCR (%s/%s): %s", note.broker, note.segment,
+                    " ".join(note.warnings))
+    else:
+        log.info("OCR (%s/%s): %d negócio(s) reconhecido(s).",
+                 note.broker, note.segment, len(note.trades))
     return note
 
 

@@ -1,11 +1,11 @@
 """Blueprint de autenticação (multi-usuário / SaaS)."""
-from flask import Blueprint, render_template, redirect, url_for, flash, request
-from flask_login import login_user, logout_user, login_required, current_user
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required, login_user, logout_user
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField
-from wtforms.validators import DataRequired, Email, Length, EqualTo
+from wtforms import BooleanField, PasswordField, StringField
+from wtforms.validators import DataRequired, Email, EqualTo, Length
 
-from .extensions import db
+from .extensions import db, limiter
 from .models import User
 
 auth_bp = Blueprint("auth", __name__)
@@ -29,6 +29,7 @@ class LoginForm(FlaskForm):
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
+@limiter.limit("10 per hour", methods=["POST"])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for("main.dashboard"))
@@ -52,6 +53,7 @@ def register():
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute; 50 per hour", methods=["POST"])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for("main.dashboard"))

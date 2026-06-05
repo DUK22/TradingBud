@@ -1,17 +1,27 @@
 """Blueprint principal: dashboard, upload/OCR, notas, apuração, posições, B3."""
+import json
 import os
-from datetime import date, datetime
-from decimal import Decimal
+from datetime import UTC, date, datetime
+from decimal import Decimal, InvalidOperation
 
-from flask import (Blueprint, render_template, redirect, url_for, flash, request,
-                   current_app, abort)
-from flask_login import login_required, current_user
+from flask import (
+    Blueprint,
+    Response,
+    abort,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
+from flask_login import current_user, login_required, logout_user
 from werkzeug.utils import secure_filename
 
 from .extensions import db
-from .models import BrokerageNote, Trade, B3Connection
+from .models import B3Connection, BrokerageNote, Trade, User
 from .services import ocr, tax_engine
-from .services.b3_client import B3InvestidorClient, B3Config, sync_status
+from .services.b3_client import B3Config, sync_status
 
 main_bp = Blueprint("main", __name__)
 
@@ -113,10 +123,18 @@ def upload():
             flash("Formato inválido. Envie um PDF.", "error")
             return redirect(request.url)
 
-        fname = secure_filename(file.filename)
-        stamped = f"{current_user.id}_{datetime.utcnow():%Y%m%d%H%M%S}_{fname}"
+        fname = secure_filename(file.filename) or "nota.pdf"
+        stamped = f"{current_user.id}_{datetime.now(UTC):%Y%m%d%H%M%S}_{fname}"
         path = os.path.join(current_app.config["UPLOAD_FOLDER"], stamped)
         file.save(path)
+
+        # Defesa em profundidade: além da extensão, exige assinatura real de PDF.
+        with open(path, "rb") as fh:
+            head = fh.read(5)
+        if head != b"%PDF-":
+            os.remove(path)
+            flash("O arquivo não é um PDF válido.", "error")
+            return redirect(request.url)
 
         try:
             parsed = ocr.parse_pdf(path)
@@ -142,9 +160,12 @@ def upload():
 @main_bp.route("/notas")
 @login_required
 def notes():
-    notes = (BrokerageNote.query.filter_by(user_id=current_user.id)
-             .order_by(BrokerageNote.trade_date.desc()).all())
-    return render_template("notes.html", notes=notes)
+    page = request.args.get("page", 1, type=int)
+    pagination = (BrokerageNote.query.filter_by(user_id=current_user.id)
+                  .order_by(BrokerageNote.trade_date.desc())
+                  .paginate(page=page, per_page=current_app.config["ITEMS_PER_PAGE"],
+                            error_out=False))
+    return render_template("notes.html", pagination=pagination)
 
 
 @main_bp.route("/notas/<int:note_id>")
@@ -171,9 +192,12 @@ def note_delete(note_id):
 @main_bp.route("/negocios")
 @login_required
 def trades():
-    items = (Trade.query.filter_by(user_id=current_user.id)
-             .order_by(Trade.trade_date.desc(), Trade.id.desc()).all())
-    return render_template("trades.html", trades=items)
+    page = request.args.get("page", 1, type=int)
+    pagination = (Trade.query.filter_by(user_id=current_user.id)
+                  .order_by(Trade.trade_date.desc(), Trade.id.desc())
+                  .paginate(page=page, per_page=current_app.config["ITEMS_PER_PAGE"],
+                            error_out=False))
+    return render_template("trades.html", pagination=pagination)
 
 
 # --- Lançamento manual (útil sem PDF) ---
@@ -185,13 +209,18 @@ def note_manual():
             td = datetime.strptime(request.form["trade_date"], "%Y-%m-%d").date()
             qty = Decimal(request.form["quantity"].replace(",", "."))
             price = Decimal(request.form["price"].replace(",", "."))
-        except (KeyError, ValueError):
+            corretagem = Decimal((request.form.get("corretagem") or "0").replace(",", ".") or "0")
+        except (KeyError, ValueError, InvalidOperation):
             flash("Preencha data, quantidade e preço corretamente.", "error")
+            return redirect(request.url)
+
+        if qty <= 0 or price < 0:
+            flash("Quantidade deve ser positiva e preço não pode ser negativo.", "error")
             return redirect(request.url)
 
         note = BrokerageNote(
             user_id=current_user.id, broker="MANUAL", trade_date=td, source="MANUAL",
-            corretagem=Decimal(request.form.get("corretagem", "0").replace(",", ".") or "0"),
+            corretagem=corretagem,
             net_value=qty * price,
         )
         db.session.add(note)
@@ -232,6 +261,62 @@ def positions():
     result = tax_engine.compute(_user_notes())
     total = sum((p.market_cost for p in result.positions), Decimal("0"))
     return render_template("positions.html", positions=result.positions, total=total)
+
+
+# --------------------------------------------------------------------------- #
+# Conta / LGPD (exportação e exclusão dos dados do usuário)
+# --------------------------------------------------------------------------- #
+@main_bp.route("/conta")
+@login_required
+def account():
+    return render_template("account.html")
+
+
+@main_bp.route("/conta/exportar")
+@login_required
+def account_export():
+    """Exporta todos os dados do usuário em JSON (direito de portabilidade)."""
+    notes = _user_notes()
+    data = {
+        "perfil": {
+            "nome": current_user.name,
+            "email": current_user.email,
+            "cpf": current_user.cpf,
+            "criado_em": current_user.created_at,
+        },
+        "notas": [{
+            "id": n.id, "corretora": n.broker, "numero": n.note_number,
+            "data_pregao": n.trade_date, "data_liquidacao": n.settlement_date,
+            "segmento": n.segment, "origem": n.source,
+            "corretagem": n.corretagem, "emolumentos": n.emolumentos,
+            "taxa_liquidacao": n.taxa_liquidacao, "taxa_registro": n.taxa_registro,
+            "iss": n.iss, "outras": n.outras,
+            "irrf_day": n.irrf_day, "irrf_swing": n.irrf_swing,
+            "net_value": n.net_value,
+            "negocios": [{
+                "data": t.trade_date, "ativo": t.asset, "mercado": t.market,
+                "lado": t.side, "quantidade": t.quantity, "preco": t.price,
+                "valor": t.gross_value,
+            } for t in n.trades],
+        } for n in notes],
+    }
+    payload = json.dumps(data, ensure_ascii=False, indent=2, default=str)
+    resp = Response(payload, mimetype="application/json")
+    resp.headers["Content-Disposition"] = (
+        f"attachment; filename=ir-traders-dados-{current_user.id}.json")
+    return resp
+
+
+@main_bp.route("/conta/excluir", methods=["POST"])
+@login_required
+def account_delete():
+    """Exclui a conta e TODOS os dados (cascade remove notas/negócios/B3)."""
+    user = db.session.get(User, current_user.id)
+    logout_user()
+    db.session.delete(user)
+    db.session.commit()
+    flash("Sua conta e todos os dados associados foram excluídos.", "success")
+    return redirect(url_for("auth.login"))
 
 
 # --------------------------------------------------------------------------- #
