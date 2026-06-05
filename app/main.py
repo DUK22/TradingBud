@@ -336,6 +336,54 @@ def account():
     return render_template("account.html")
 
 
+@main_bp.route("/conta/senha", methods=["POST"])
+@login_required
+def account_password():
+    """Troca a senha do usuário logado."""
+    atual = request.form.get("atual", "")
+    nova = request.form.get("nova", "")
+    confirma = request.form.get("confirma", "")
+    if not current_user.check_password(atual):
+        flash("Senha atual incorreta.", "error")
+    elif len(nova) < 8:
+        flash("A nova senha precisa ter ao menos 8 caracteres.", "error")
+    elif nova != confirma:
+        flash("A confirmação não confere com a nova senha.", "error")
+    else:
+        current_user.set_password(nova)
+        db.session.commit()
+        flash("Senha alterada com sucesso.", "success")
+    return redirect(url_for("main.account"))
+
+
+@main_bp.route("/conta/exemplo", methods=["POST"])
+@login_required
+def load_example_data():
+    """Popula a conta com algumas notas/negócios de exemplo (para conhecer o app)."""
+    y = date.today().year
+
+    def add(d, trades, irrf_day=0, irrf_swing=0):
+        note = BrokerageNote(user_id=current_user.id, broker="EXEMPLO", trade_date=d,
+                             source="MANUAL", irrf_day=Decimal(str(irrf_day)),
+                             irrf_swing=Decimal(str(irrf_swing)))
+        db.session.add(note)
+        db.session.flush()
+        for asset, market, side, qty, price in trades:
+            db.session.add(Trade(
+                user_id=current_user.id, note_id=note.id, trade_date=d, asset=asset,
+                market=market, side=side, quantity=Decimal(str(qty)),
+                price=Decimal(str(price)), gross_value=Decimal(str(qty)) * Decimal(str(price))))
+
+    add(date(y, 1, 8),  [("ITUB4", "VISTA", "C", 200, 30)])
+    add(date(y, 1, 22), [("ITUB4", "VISTA", "V", 200, 33)], irrf_swing="0.33")
+    add(date(y, 2, 10), [("PETR4", "VISTA", "C", 1000, 38)])
+    add(date(y, 3, 10), [("PETR4", "VISTA", "C", 500, 39), ("PETR4", "VISTA", "V", 500, 39.8)], irrf_day="4")
+    add(date(y, 3, 20), [("PETR4", "VISTA", "V", 1000, 41)], irrf_swing="2.05")
+    db.session.commit()
+    flash("Dados de exemplo carregados! Dá uma olhada no Dashboard e na Apuração.", "success")
+    return redirect(url_for("main.dashboard"))
+
+
 @main_bp.route("/conta/exportar")
 @login_required
 def account_export():

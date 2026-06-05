@@ -20,6 +20,31 @@
   </div>
 
   <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+    <div class="font-medium mb-1">Trocar senha</div>
+    <p class="text-sm text-slate-400 mb-4">Mínimo de 8 caracteres.</p>
+    <form method="post" action="{{ url_for('main.account_password') }}" class="max-w-sm space-y-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input name="atual" type="password" required placeholder="Senha atual"
+             class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm focus:border-brand focus:outline-none">
+      <input name="nova" type="password" required placeholder="Nova senha"
+             class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm focus:border-brand focus:outline-none">
+      <input name="confirma" type="password" required placeholder="Confirmar nova senha"
+             class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm focus:border-brand focus:outline-none">
+      <button class="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-brand-dark">Salvar nova senha</button>
+    </form>
+  </div>
+
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+    <div class="font-medium mb-1">Dados de exemplo</div>
+    <p class="text-sm text-slate-400 mb-4">Carrega algumas notas e operações fictícias para você
+      conhecer o dashboard, a apuração e a DARF. Dá pra excluí-las depois (são da corretora "EXEMPLO").</p>
+    <form method="post" action="{{ url_for('main.load_example_data') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="rounded-lg border border-emerald-400/40 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-400/10">Carregar dados de exemplo</button>
+    </form>
+  </div>
+
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
     <div class="font-medium mb-1">Exportar meus dados</div>
     <p class="text-sm text-slate-400 mb-4">Baixe todo o seu histórico (perfil, notas e
       negócios) em um arquivo JSON.</p>

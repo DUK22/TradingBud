@@ -12,6 +12,32 @@ def _login(client, email="t@t.com", password="password"):
                        follow_redirects=True)
 
 
+def test_trocar_senha(client, user):
+    _login(client)
+    r = client.post("/conta/senha", data={
+        "atual": "password", "nova": "novasenha123", "confirma": "novasenha123",
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    db.session.expire(user)
+    assert db.session.get(User, user.id).check_password("novasenha123")
+
+
+def test_trocar_senha_atual_errada(client, user):
+    _login(client)
+    client.post("/conta/senha", data={
+        "atual": "errada", "nova": "novasenha123", "confirma": "novasenha123",
+    }, follow_redirects=True)
+    db.session.expire(user)
+    assert db.session.get(User, user.id).check_password("password")  # não mudou
+
+
+def test_carregar_dados_de_exemplo(client, user):
+    _login(client)
+    r = client.post("/conta/exemplo", follow_redirects=False)
+    assert r.status_code == 302
+    assert BrokerageNote.query.filter_by(user_id=user.id).count() > 0
+
+
 def test_cpf_criptografado_em_repouso(app):
     u = User(name="X", email="c@c.com", cpf="123.456.789-00")
     u.set_password("password")

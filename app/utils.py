@@ -59,3 +59,9 @@ def register_filters(app):
     app.jinja_env.filters["num"] = format_num
     app.jinja_env.filters["pct"] = format_pct
     app.jinja_env.filters["mes"] = mes_nome
+
+    # Contratos futuros (valor do ponto / valor financeiro) disponíveis nos templates
+    from .services import contracts
+    app.jinja_env.globals["valor_ponto"] = contracts.point_value
+    app.jinja_env.globals["valor_contrato"] = contracts.contract_value
+    app.jinja_env.globals["nome_contrato"] = contracts.contract_name

@@ -32,6 +32,10 @@
     <a href="{{ url_for('main.upload') }}" class="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950">Importar nota PDF</a>
     <a href="{{ url_for('main.note_manual') }}" class="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/[0.04]">Lançar manual</a>
   </div>
+  <form method="post" action="{{ url_for('main.load_example_data') }}" class="mt-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="text-sm text-emerald-300 hover:underline">ou carregar dados de exemplo →</button>
+  </form>
 </div>
 {% else %}
 

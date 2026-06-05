@@ -21,10 +21,12 @@
       <thead class="bg-slate-800/40 text-slate-400 text-left">
         <tr><th class="px-4 py-2">C/V</th><th class="px-4 py-2">Ativo</th>
         <th class="px-4 py-2">Mercado</th><th class="px-4 py-2 text-right">Qtd</th>
-        <th class="px-4 py-2 text-right">Preço</th><th class="px-4 py-2 text-right">Valor</th></tr>
+        <th class="px-4 py-2 text-right">Preço</th><th class="px-4 py-2 text-right">Valor</th>
+        <th class="px-4 py-2 text-right">Valor contrato</th></tr>
       </thead>
       <tbody class="divide-y divide-slate-800">
         {% for t in note.trades %}
+        {% set vc = valor_contrato(t.asset, t.price, t.quantity) %}
         <tr>
           <td class="px-4 py-2"><span class="text-xs px-2 py-0.5 rounded {{ 'bg-emerald-500/15 text-emerald-400' if t.side=='C' else 'bg-red-500/15 text-red-400' }}">{{ 'Compra' if t.side=='C' else 'Venda' }}</span></td>
           <td class="px-4 py-2 font-medium">{{ t.asset }}</td>
@@ -32,10 +34,20 @@
           <td class="px-4 py-2 text-right">{{ t.quantity|num(0) }}</td>
           <td class="px-4 py-2 text-right">{{ t.price|brl }}</td>
           <td class="px-4 py-2 text-right">{{ t.gross_value|brl }}</td>
+          <td class="px-4 py-2 text-right {{ 'text-slate-200' if vc is not none else 'text-slate-600' }}">{{ vc|brl if vc is not none else '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+    {% if note.segment == 'BMF' and note.trades %}
+    {% set vp = valor_ponto(note.trades[0].asset) %}
+    {% if vp is not none %}
+    <p class="px-4 py-3 text-xs text-slate-500 border-t border-slate-800">
+      {{ nome_contrato(note.trades[0].asset) }} ({{ note.trades[0].asset }}): valor do ponto
+      <strong class="text-slate-300">{{ vp|brl }}</strong>. Valor do contrato = preço × valor do ponto × quantidade.
+    </p>
+    {% endif %}
+    {% endif %}
     {% else %}
     <p class="px-4 py-6 text-slate-500 text-sm">Nenhum negócio reconhecido nesta nota.</p>
     {% endif %}
