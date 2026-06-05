@@ -20,7 +20,7 @@ from werkzeug.utils import secure_filename
 
 from .extensions import db
 from .models import B3Connection, BrokerageNote, Trade, User
-from .services import ocr, tax_engine
+from .services import darf_pdf, ocr, tax_engine
 from .services.b3_client import B3Config, sync_status
 
 main_bp = Blueprint("main", __name__)
@@ -269,6 +269,21 @@ def apuracao():
         "apuracao.html", months=months, result=result,
         darf_codigo=tax_engine.DARF_CODIGO, darf_min=tax_engine.DARF_MINIMO,
     )
+
+
+@main_bp.route("/apuracao/<int:year>/<int:month>/darf.pdf")
+@login_required
+def darf_pdf_download(year, month):
+    """DARF (demonstrativo) em PDF para o mês informado."""
+    result = tax_engine.compute(_user_notes())
+    m = result.month(year, month)
+    if not m:
+        abort(404)
+    pdf_bytes = darf_pdf.build(current_user, m)
+    resp = Response(pdf_bytes, mimetype="application/pdf")
+    resp.headers["Content-Disposition"] = (
+        f"inline; filename=darf-{year}-{month:02d}.pdf")
+    return resp
 
 
 # --------------------------------------------------------------------------- #
