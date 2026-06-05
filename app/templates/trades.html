@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Negócios · IR Traders{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold">Negócios</h1>
+  <a href="{{ url_for('main.note_manual') }}" class="border border-slate-700 rounded-lg px-4 py-2 text-sm hover:bg-slate-800">+ Lançar manual</a>
+</div>
+
+{% if not trades %}
+<p class="text-slate-500">Nenhum negócio registrado.</p>
+{% else %}
+<div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-800/50 text-slate-400 text-left">
+      <tr><th class="px-4 py-3">Data</th><th class="px-4 py-3">C/V</th>
+      <th class="px-4 py-3">Ativo</th><th class="px-4 py-3">Mercado</th>
+      <th class="px-4 py-3 text-right">Qtd</th><th class="px-4 py-3 text-right">Preço</th>
+      <th class="px-4 py-3 text-right">Valor</th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-800">
+      {% for t in trades %}
+      <tr class="hover:bg-slate-800/30">
+        <td class="px-4 py-3">{{ t.trade_date.strftime('%d/%m/%Y') }}</td>
+        <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded {{ 'bg-emerald-500/15 text-emerald-400' if t.side=='C' else 'bg-red-500/15 text-red-400' }}">{{ 'C' if t.side=='C' else 'V' }}</span></td>
+        <td class="px-4 py-3 font-medium">{{ t.asset }}</td>
+        <td class="px-4 py-3 text-slate-400">{{ t.market }}</td>
+        <td class="px-4 py-3 text-right">{{ t.quantity|num(0) }}</td>
+        <td class="px-4 py-3 text-right">{{ t.price|brl }}</td>
+        <td class="px-4 py-3 text-right">{{ t.gross_value|brl }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

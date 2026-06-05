@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Lançar negócio · IR Traders{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-1">Lançar negócio manual</h1>
+<p class="text-slate-500 text-sm mb-6">Útil para testar a apuração sem um PDF, ou para ajustes pontuais.</p>
+
+<form method="post" class="max-w-2xl bg-slate-900 border border-slate-800 rounded-xl p-6 grid sm:grid-cols-2 gap-4">
+  <div>
+    <label class="block text-sm text-slate-400 mb-1">Data</label>
+    <input name="trade_date" type="date" value="{{ hoje }}" required
+           class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 focus:border-brand focus:outline-none">
+  </div>
+  <div>
+    <label class="block text-sm text-slate-400 mb-1">Ativo</label>
+    <input name="asset" placeholder="PETR4" required
+           class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 uppercase focus:border-brand focus:outline-none">
+  </div>
+  <div>
+    <label class="block text-sm text-slate-400 mb-1">Operação</label>
+    <select name="side" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 focus:border-brand focus:outline-none">
+      <option value="C">Compra</option><option value="V">Venda</option>
+    </select>
+  </div>
+  <div>
+    <label class="block text-sm text-slate-400 mb-1">Mercado</label>
+    <select name="market" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 focus:border-brand focus:outline-none">
+      <option value="VISTA">À vista</option>
+      <option value="FRACIONARIO">Fracionário</option>
+      <option value="OPCAO">Opção</option>
+      <option value="TERMO">Termo</option>
+    </select>
+  </div>
+  <div>
+    <label class="block text-sm text-slate-400 mb-1">Quantidade</label>
+    <input name="quantity" required placeholder="100"
+           class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 focus:border-brand focus:outline-none">
+  </div>
+  <div>
+    <label class="block text-sm text-slate-400 mb-1">Preço (R$)</label>
+    <input name="price" required placeholder="38,50"
+           class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 focus:border-brand focus:outline-none">
+  </div>
+  <div>
+    <label class="block text-sm text-slate-400 mb-1">Corretagem/taxas (R$)</label>
+    <input name="corretagem" placeholder="0,00"
+           class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 focus:border-brand focus:outline-none">
+  </div>
+  <div class="sm:col-span-2">
+    <button class="w-full bg-brand hover:bg-brand-dark text-slate-950 font-semibold rounded-lg py-2.5 transition">Lançar</button>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Nota {{ note.note_number or note.id }} · IR Traders{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <a href="{{ url_for('main.notes') }}" class="text-sm text-slate-500 hover:text-slate-300">← Notas</a>
+    <h1 class="text-2xl font-semibold mt-1">{{ note.broker }} · {{ note.trade_date.strftime('%d/%m/%Y') }}</h1>
+  </div>
+  <form method="post" action="{{ url_for('main.note_delete', note_id=note.id) }}"
+        onsubmit="return confirm('Excluir esta nota e seus negócios?')">
+    <button class="text-sm text-red-400 border border-red-500/30 rounded-lg px-3 py-2 hover:bg-red-500/10">Excluir</button>
+  </form>
+</div>
+
+<div class="grid lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+    <div class="px-4 py-3 text-sm font-medium border-b border-slate-800">Negócios realizados</div>
+    {% if note.trades %}
+    <table class="w-full text-sm">
+      <thead class="bg-slate-800/40 text-slate-400 text-left">
+        <tr><th class="px-4 py-2">C/V</th><th class="px-4 py-2">Ativo</th>
+        <th class="px-4 py-2">Mercado</th><th class="px-4 py-2 text-right">Qtd</th>
+        <th class="px-4 py-2 text-right">Preço</th><th class="px-4 py-2 text-right">Valor</th></tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800">
+        {% for t in note.trades %}
+        <tr>
+          <td class="px-4 py-2"><span class="text-xs px-2 py-0.5 rounded {{ 'bg-emerald-500/15 text-emerald-400' if t.side=='C' else 'bg-red-500/15 text-red-400' }}">{{ 'Compra' if t.side=='C' else 'Venda' }}</span></td>
+          <td class="px-4 py-2 font-medium">{{ t.asset }}</td>
+          <td class="px-4 py-2 text-slate-400">{{ t.market }}</td>
+          <td class="px-4 py-2 text-right">{{ t.quantity|num(0) }}</td>
+          <td class="px-4 py-2 text-right">{{ t.price|brl }}</td>
+          <td class="px-4 py-2 text-right">{{ t.gross_value|brl }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="px-4 py-6 text-slate-500 text-sm">Nenhum negócio reconhecido nesta nota.</p>
+    {% endif %}
+  </div>
+
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 text-sm">
+    <div class="font-medium mb-3">Resumo financeiro</div>
+    {% if note.segment == 'BMF' %}
+    <div class="mb-3 p-3 rounded-lg bg-slate-800/50">
+      <div class="text-xs text-slate-500 uppercase">Resultado day trade (ajuste)</div>
+      <div class="text-lg font-semibold {{ 'text-emerald-400' if note.daytrade_gross>=0 else 'text-red-400' }}">{{ note.daytrade_gross|brl }}</div>
+    </div>
+    {% set rows = [('Custos operacionais (BM&F)', note.emolumentos),
+      ('IRRF Day Trade', note.irrf_day)] %}
+    {% else %}
+    {% set rows = [('Corretagem', note.corretagem), ('Emolumentos', note.emolumentos),
+      ('Taxa liquidação', note.taxa_liquidacao), ('Taxa registro', note.taxa_registro),
+      ('ISS', note.iss), ('Outras', note.outras),
+      ('IRRF Day Trade', note.irrf_day), ('IRRF Swing (0,005%)', note.irrf_swing)] %}
+    {% endif %}
+    {% for label,val in rows %}
+    <div class="flex justify-between py-1.5 border-b border-slate-800/60">
+      <span class="text-slate-400">{{ label }}</span><span>{{ val|brl }}</span>
+    </div>
+    {% endfor %}
+    <div class="flex justify-between py-2 mt-1 font-medium">
+      <span>Líquido</span><span>{{ note.net_value|brl }}</span>
+    </div>
+  </div>
+</div>
+
+{% if note.raw_text %}
+<details class="mt-6 bg-slate-900 border border-slate-800 rounded-xl">
+  <summary class="px-4 py-3 text-sm text-slate-400 cursor-pointer">Texto extraído (auditoria / calibração do parser)</summary>
+  <pre class="px-4 pb-4 text-xs text-slate-500 whitespace-pre-wrap overflow-x-auto">{{ note.raw_text }}</pre>
+</details>
+{% endif %}
+{% endblock %}

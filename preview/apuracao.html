@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apuração mensal · IR Traders</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { colors: {
+      brand: { DEFAULT: '#10b981', dark: '#059669' } } } } };
+  </script>
+  <style>
+    body { -webkit-font-smoothing: antialiased; }
+  </style>
+  
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen"><div style="background:#0ea5e9;color:#04293a;text-align:center;padding:7px 10px;font:13px/1.45 system-ui,sans-serif">Pré-visualização estática com dados de demonstração — para a versão funcional rode <b>python run.py</b> e acesse http://127.0.0.1:5000</div>
+
+
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside class="hidden md:flex md:flex-col w-60 bg-slate-900 border-r border-slate-800 p-4 shrink-0">
+    <div class="flex items-center gap-2 mb-8 px-2">
+      <div class="w-9 h-9 rounded-lg bg-brand/20 flex items-center justify-center text-brand font-bold">IR</div>
+      <div>
+        <div class="font-semibold leading-tight">IR Traders</div>
+        <div class="text-xs text-slate-500">Renda Variável</div>
+      </div>
+    </div>
+    
+    <nav class="flex-1 space-y-1">
+      
+      <a href="index.html"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+        Dashboard
+      </a>
+      
+      <a href="apuracao.html"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                bg-brand/15 text-brand">
+        Apuração mensal
+      </a>
+      
+      <a href="posicoes.html"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+        Posições
+      </a>
+      
+      <a href="notas.html"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+        Notas
+      </a>
+      
+      <a href="negocios.html"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+        Negócios
+      </a>
+      
+      <a href="upload.html"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+        Importar nota
+      </a>
+      
+      <a href="integracoes_b3.html"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+        Integração B3
+      </a>
+      
+    </nav>
+    <div class="border-t border-slate-800 pt-3 mt-3">
+      <div class="text-sm text-slate-300 px-3 truncate">Trader Demo</div>
+      <div class="text-xs text-slate-500 px-3 truncate mb-2">demo@trader.com</div>
+      <a href="#" class="block px-3 py-2 text-sm text-slate-400 hover:text-red-400">Sair</a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 min-w-0">
+    <!-- Topbar mobile -->
+    <div class="md:hidden flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900">
+      <span class="font-semibold">IR Traders</span>
+      <a href="#" class="text-sm text-slate-400">Sair</a>
+    </div>
+
+    <div class="p-5 md:p-8 max-w-7xl mx-auto">
+      
+        
+      
+
+      
+<h1 class="text-2xl font-semibold mb-1">Apuração mensal</h1>
+<p class="text-slate-500 text-sm mb-6">
+  Swing 15% · Day Trade 20% · isenção de R$ 20.000,00/mês para vendas à vista de ações (swing).
+  Prejuízos compensam apenas dentro da mesma modalidade.
+</p>
+
+
+<div class="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+  <table class="w-full text-sm whitespace-nowrap">
+    <thead class="bg-slate-800/50 text-slate-400 text-left">
+      <tr>
+        <th class="px-3 py-3">Mês</th>
+        <th class="px-3 py-3 text-right">Day result.</th>
+        <th class="px-3 py-3 text-right">Swing result.</th>
+        <th class="px-3 py-3 text-right">Isento</th>
+        <th class="px-3 py-3 text-right">Prej. usado</th>
+        <th class="px-3 py-3 text-right">Base trib.</th>
+        <th class="px-3 py-3 text-right">Imposto</th>
+        <th class="px-3 py-3 text-right">IRRF</th>
+        <th class="px-3 py-3 text-right">DARF</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-800">
+      
+      <tr class="hover:bg-slate-800/30">
+        <td class="px-3 py-3 font-medium">Junho/2026</td>
+        <td class="px-3 py-3 text-right text-emerald-400">R$ 231,74</td>
+        <td class="px-3 py-3 text-right text-emerald-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 206,90</td>
+        <td class="px-3 py-3 text-right">R$ 24,84</td>
+        <td class="px-3 py-3 text-right text-amber-300">R$ 4,97</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 2,39</td>
+        <td class="px-3 py-3 text-right font-semibold">
+          R$ 2,58
+          <span class="block text-[10px] text-amber-500">&lt; mínimo, acumula</span>
+        </td>
+      </tr>
+      
+      <tr class="hover:bg-slate-800/30">
+        <td class="px-3 py-3 font-medium">Maio/2026</td>
+        <td class="px-3 py-3 text-right text-red-400">-R$ 206,90</td>
+        <td class="px-3 py-3 text-right text-emerald-400">R$ 2.380,08</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 2.380,08</td>
+        <td class="px-3 py-3 text-right">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-amber-300">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 1,72</td>
+        <td class="px-3 py-3 text-right font-semibold">
+          R$ 0,00
+          
+        </td>
+      </tr>
+      
+      <tr class="hover:bg-slate-800/30">
+        <td class="px-3 py-3 font-medium">Abril/2026</td>
+        <td class="px-3 py-3 text-right text-emerald-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-red-400">-R$ 2.517,26</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-amber-300">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 1,38</td>
+        <td class="px-3 py-3 text-right font-semibold">
+          R$ 0,00
+          
+        </td>
+      </tr>
+      
+      <tr class="hover:bg-slate-800/30">
+        <td class="px-3 py-3 font-medium">Março/2026</td>
+        <td class="px-3 py-3 text-right text-emerald-400">R$ 388,18</td>
+        <td class="px-3 py-3 text-right text-emerald-400">R$ 2.976,30</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right">R$ 3.364,48</td>
+        <td class="px-3 py-3 text-right text-amber-300">R$ 524,09</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 6,05</td>
+        <td class="px-3 py-3 text-right font-semibold">
+          R$ 518,04
+          
+        </td>
+      </tr>
+      
+      <tr class="hover:bg-slate-800/30">
+        <td class="px-3 py-3 font-medium">Fevereiro/2026</td>
+        <td class="px-3 py-3 text-right text-emerald-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-emerald-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-amber-300">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right font-semibold">
+          R$ 0,00
+          
+        </td>
+      </tr>
+      
+      <tr class="hover:bg-slate-800/30">
+        <td class="px-3 py-3 font-medium">Janeiro/2026</td>
+        <td class="px-3 py-3 text-right text-emerald-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-emerald-400">R$ 596,22</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 596,22</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 0,00</td>
+        <td class="px-3 py-3 text-right">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-amber-300">R$ 0,00</td>
+        <td class="px-3 py-3 text-right text-slate-400">R$ 0,33</td>
+        <td class="px-3 py-3 text-right font-semibold">
+          R$ 0,00
+          
+        </td>
+      </tr>
+      
+    </tbody>
+  </table>
+</div>
+
+<div class="grid sm:grid-cols-3 gap-4 mt-6">
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-xs text-slate-500 uppercase">Prejuízo Swing a compensar</div>
+    <div class="text-xl font-semibold mt-1">R$ 137,18</div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-xs text-slate-500 uppercase">Prejuízo Day Trade a compensar</div>
+    <div class="text-xl font-semibold mt-1">R$ 0,00</div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-xs text-slate-500 uppercase">Código DARF</div>
+    <div class="text-xl font-semibold mt-1">6015</div>
+    <div class="text-xs text-slate-500 mt-1">venc.: último dia útil do mês seguinte</div>
+  </div>
+</div>
+
+<p class="text-xs text-slate-600 mt-4">
+  DARF abaixo de R$ 10,00 não é recolhido isoladamente — acumula-se para um mês
+  seguinte até atingir o mínimo. IRRF retido (1% day / 0,005% swing) é deduzido do imposto devido.
+</p>
+
+
+
+      <footer class="mt-12 pt-6 border-t border-slate-800 text-xs text-slate-600">
+        Ferramenta de apoio à organização fiscal. <span class="text-slate-500">Não constitui
+        aconselhamento contábil ou tributário</span> — confira os cálculos com seu contador.
+      </footer>
+    </div>
+  </main>
+</div>
+
+
+
+</body>
+</html>

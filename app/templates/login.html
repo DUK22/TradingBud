@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Entrar · IR Traders{% endblock %}
+{% block auth_content %}
+<div class="w-full max-w-md">
+  <div class="text-center mb-6">
+    <div class="inline-flex w-12 h-12 rounded-xl bg-brand/20 items-center justify-center text-brand font-bold text-lg mb-3">IR</div>
+    <h1 class="text-2xl font-semibold">Bem-vindo de volta</h1>
+    <p class="text-slate-500 text-sm">Gestão de Imposto de Renda para Traders</p>
+  </div>
+  <form method="post" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+    {{ form.csrf_token }}
+    <div>
+      <label class="block text-sm text-slate-400 mb-1">E-mail</label>
+      <input name="email" type="email" required value="{{ form.email.data or '' }}"
+             class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:border-brand">
+    </div>
+    <div>
+      <label class="block text-sm text-slate-400 mb-1">Senha</label>
+      <input name="password" type="password" required
+             class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:border-brand">
+    </div>
+    <label class="flex items-center gap-2 text-sm text-slate-400">
+      <input name="remember" type="checkbox" class="rounded bg-slate-950 border-slate-700"> Manter conectado
+    </label>
+    <button class="w-full bg-brand hover:bg-brand-dark text-slate-950 font-semibold rounded-lg py-2.5 transition">Entrar</button>
+  </form>
+  <p class="text-center text-sm text-slate-500 mt-4">
+    Não tem conta? <a href="{{ url_for('auth.register') }}" class="text-brand hover:underline">Cadastre-se</a>
+  </p>
+</div>
+{% endblock %}

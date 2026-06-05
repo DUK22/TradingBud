@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · IR Traders{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-semibold">Dashboard</h1>
+    <p class="text-slate-500 text-sm">Performance e impostos — {{ ano }}</p>
+  </div>
+  <a href="{{ url_for('main.upload') }}"
+     class="bg-brand hover:bg-brand-dark text-slate-950 font-semibold rounded-lg px-4 py-2 text-sm transition">+ Importar nota</a>
+</div>
+
+{% if n_notas == 0 %}
+<div class="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
+  <p class="text-slate-300 mb-2">Nenhuma nota importada ainda.</p>
+  <p class="text-slate-500 text-sm mb-4">Importe uma nota de corretagem (PDF) ou lance um negócio manualmente para ver sua apuração.</p>
+  <div class="flex gap-3 justify-center">
+    <a href="{{ url_for('main.upload') }}" class="bg-brand text-slate-950 font-semibold rounded-lg px-4 py-2 text-sm">Importar nota PDF</a>
+    <a href="{{ url_for('main.note_manual') }}" class="border border-slate-700 rounded-lg px-4 py-2 text-sm hover:bg-slate-800">Lançar manual</a>
+  </div>
+</div>
+{% else %}
+
+<!-- Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-xs text-slate-500 uppercase tracking-wide">Patrimônio em aberto</div>
+    <div class="text-2xl font-semibold mt-1">{{ patrimonio|brl }}</div>
+    <div class="text-xs text-slate-500 mt-1">custo médio das posições</div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-xs text-slate-500 uppercase tracking-wide">Resultado do mês</div>
+    {% set rm = cur.total_result if cur else 0 %}
+    <div class="text-2xl font-semibold mt-1 {{ 'text-emerald-400' if rm>=0 else 'text-red-400' }}">{{ rm|brl }}</div>
+    <div class="text-xs text-slate-500 mt-1">
+      {% if cur %}Day {{ cur.day_result|brl }} · Swing {{ cur.swing_result|brl }}{% else %}sem operações este mês{% endif %}
+    </div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-xs text-slate-500 uppercase tracking-wide">DARF do mês</div>
+    <div class="text-2xl font-semibold mt-1 text-amber-300">{{ (cur.darf if cur else 0)|brl }}</div>
+    <div class="text-xs text-slate-500 mt-1">imposto a pagar (líq. de IRRF)</div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-xs text-slate-500 uppercase tracking-wide">Prejuízo a compensar</div>
+    <div class="text-2xl font-semibold mt-1 text-slate-200">{{ (result.final_swing_loss + result.final_day_loss)|brl }}</div>
+    <div class="text-xs text-slate-500 mt-1">Swing {{ result.final_swing_loss|brl }} · Day {{ result.final_day_loss|brl }}</div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 lg:col-span-2">
+    <div class="text-sm font-medium mb-4">Resultado mensal (Day x Swing)</div>
+    <canvas id="chartResult" height="120"></canvas>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-sm font-medium mb-4">Resultado acumulado</div>
+    <canvas id="chartAcc" height="200"></canvas>
+  </div>
+</div>
+
+<!-- Resumo anual -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Resultado no ano</div>
+    <div class="text-xl font-semibold {{ 'text-emerald-400' if resultado_ano>=0 else 'text-red-400' }}">{{ resultado_ano|brl }}</div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Imposto apurado no ano</div>
+    <div class="text-xl font-semibold text-amber-300">{{ imposto_ano|brl }}</div>
+  </div>
+  <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+    <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Posições abertas</div>
+    <div class="text-xl font-semibold">{{ result.positions|length }} ativo(s)</div>
+    <a href="{{ url_for('main.positions') }}" class="text-xs text-brand hover:underline">ver carteira →</a>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if n_notas > 0 %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const C = {{ chart|tojson }};
+  const grid = 'rgba(148,163,184,0.12)', tick = '#94a3b8';
+  const baseOpts = { plugins:{legend:{labels:{color:tick}}},
+    scales:{x:{ticks:{color:tick},grid:{color:grid}},y:{ticks:{color:tick},grid:{color:grid}}} };
+
+  new Chart(document.getElementById('chartResult'), {
+    type:'bar',
+    data:{ labels:C.labels, datasets:[
+      {label:'Day Trade', data:C.day, backgroundColor:'#38bdf8'},
+      {label:'Swing Trade', data:C.swing, backgroundColor:'#10b981'} ]},
+    options: baseOpts
+  });
+
+  new Chart(document.getElementById('chartAcc'), {
+    type:'line',
+    data:{ labels:C.labels, datasets:[
+      {label:'Acumulado', data:C.acc, borderColor:'#10b981',
+       backgroundColor:'rgba(16,185,129,0.15)', fill:true, tension:.3} ]},
+    options: baseOpts
+  });
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Posições · IR Traders</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { colors: {
+      brand: { DEFAULT: '#10b981', dark: '#059669' } } } } };
+  </script>
+  <style>
+    body { -webkit-font-smoothing: antialiased; }
+  </style>
+  
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen"><div style="background:#0ea5e9;color:#04293a;text-align:center;padding:7px 10px;font:13px/1.45 system-ui,sans-serif">Pré-visualização estática com dados de demonstração — para a versão funcional rode <b>python run.py</b> e acesse http://127.0.0.1:5000</div>
+
+
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside class="hidden md:flex md:flex-col w-60 bg-slate-900 border-r border-slate-800 p-4 shrink-0">
+    <div class="flex items-center gap-2 mb-8 px-2">
+      <div class="w-9 h-9 rounded-lg bg-brand/20 flex items-center justify-center text-brand font-bold">IR</div>
+      <div>
+        <div class="font-semibold leading-tight">IR Traders</div>
+        <div class="text-xs text-slate-500">Renda Variável</div>
+      </div>
+    </div>
+    
+    <nav class="flex-1 space-y-1">
+      
+      <a href="index.html"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+        Dashboard
+      </a>
+      
+      <a href="apuracao.html"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+        Apuração mensal
+      </a>
+      
+      <a href="posicoes.html"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                bg-brand/15 text-brand">
+        Posições
+      </a>
+      
+      <a href="notas.html"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+        Notas
+      </a>
+      
+      <a href="negocios.html"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+        Negócios
+      </a>
+      
+      <a href="upload.html"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+        Importar nota
+      </a>
+      
+      <a href="integracoes_b3.html"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+        Integração B3
+      </a>
+      
+    </nav>
+    <div class="border-t border-slate-800 pt-3 mt-3">
+      <div class="text-sm text-slate-300 px-3 truncate">Trader Demo</div>
+      <div class="text-xs text-slate-500 px-3 truncate mb-2">demo@trader.com</div>
+      <a href="#" class="block px-3 py-2 text-sm text-slate-400 hover:text-red-400">Sair</a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 min-w-0">
+    <!-- Topbar mobile -->
+    <div class="md:hidden flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900">
+      <span class="font-semibold">IR Traders</span>
+      <a href="#" class="text-sm text-slate-400">Sair</a>
+    </div>
+
+    <div class="p-5 md:p-8 max-w-7xl mx-auto">
+      
+        
+      
+
+      
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold">Posições em aberto</h1>
+  <div class="text-right">
+    <div class="text-xs text-slate-500 uppercase">Custo total</div>
+    <div class="text-xl font-semibold">R$ 20.406,12</div>
+  </div>
+</div>
+
+
+<div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-800/50 text-slate-400 text-left">
+      <tr><th class="px-4 py-3">Ativo</th><th class="px-4 py-3">Mercado</th>
+      <th class="px-4 py-3 text-right">Quantidade</th>
+      <th class="px-4 py-3 text-right">Preço médio</th>
+      <th class="px-4 py-3 text-right">Custo total</th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-800">
+      
+      <tr class="hover:bg-slate-800/30">
+        <td class="px-4 py-3 font-medium">BBAS3</td>
+        <td class="px-4 py-3 text-slate-400">VISTA</td>
+        <td class="px-4 py-3 text-right">300</td>
+        <td class="px-4 py-3 text-right">R$ 28,01</td>
+        <td class="px-4 py-3 text-right">R$ 8.402,52</td>
+      </tr>
+      
+      <tr class="hover:bg-slate-800/30">
+        <td class="px-4 py-3 font-medium">MGLU3</td>
+        <td class="px-4 py-3 text-slate-400">VISTA</td>
+        <td class="px-4 py-3 text-right">1.000</td>
+        <td class="px-4 py-3 text-right">R$ 12,00</td>
+        <td class="px-4 py-3 text-right">R$ 12.003,60</td>
+      </tr>
+      
+    </tbody>
+  </table>
+</div>
+<p class="text-xs text-slate-600 mt-3">Preço médio ponderado já incorpora corretagem e taxas de aquisição.</p>
+
+
+
+      <footer class="mt-12 pt-6 border-t border-slate-800 text-xs text-slate-600">
+        Ferramenta de apoio à organização fiscal. <span class="text-slate-500">Não constitui
+        aconselhamento contábil ou tributário</span> — confira os cálculos com seu contador.
+      </footer>
+    </div>
+  </main>
+</div>
+
+
+
+</body>
+</html>

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Notas · IR Traders{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold">Notas de corretagem</h1>
+  <a href="{{ url_for('main.upload') }}" class="bg-brand text-slate-950 font-semibold rounded-lg px-4 py-2 text-sm">+ Importar</a>
+</div>
+
+{% if not notes %}
+<p class="text-slate-500">Nenhuma nota cadastrada.</p>
+{% else %}
+<div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-800/50 text-slate-400 text-left">
+      <tr>
+        <th class="px-4 py-3">Data</th><th class="px-4 py-3">Corretora</th>
+        <th class="px-4 py-3">Nº</th><th class="px-4 py-3 text-right">Negócios</th>
+        <th class="px-4 py-3 text-right">Custos</th><th class="px-4 py-3 text-right">Líquido</th>
+        <th class="px-4 py-3">Origem</th><th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-800">
+      {% for n in notes %}
+      <tr class="hover:bg-slate-800/30">
+        <td class="px-4 py-3">{{ n.trade_date.strftime('%d/%m/%Y') }}</td>
+        <td class="px-4 py-3">{{ n.broker }}</td>
+        <td class="px-4 py-3 text-slate-400">{{ n.note_number or '—' }}</td>
+        <td class="px-4 py-3 text-right">{{ n.trades|length }}</td>
+        <td class="px-4 py-3 text-right text-slate-400">{{ n.total_costs|brl }}</td>
+        <td class="px-4 py-3 text-right">{{ n.net_value|brl }}</td>
+        <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">{{ n.source }}</span></td>
+        <td class="px-4 py-3 text-right"><a href="{{ url_for('main.note_detail', note_id=n.id) }}" class="text-brand hover:underline">abrir</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

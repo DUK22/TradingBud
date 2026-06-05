@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Integração B3 · IR Traders{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-1">Integração B3 — Área do Investidor</h1>
+<p class="text-slate-500 text-sm mb-6">Sincronização automática das negociações direto da B3 (em preparação).</p>
+
+<div class="max-w-2xl bg-slate-900 border border-slate-800 rounded-xl p-6">
+  <div class="flex items-center gap-3 mb-4">
+    {% set ok = status.available and status.get('status')=='connected' %}
+    <span class="w-2.5 h-2.5 rounded-full {{ 'bg-emerald-400' if ok else 'bg-amber-400' }}"></span>
+    <span class="font-medium">{{ 'Conectado' if ok else 'Não conectado' }}</span>
+  </div>
+  <p class="text-sm text-slate-400 mb-5">{{ status.message }}</p>
+
+  <form method="post">
+    <button class="bg-brand hover:bg-brand-dark text-slate-950 font-semibold rounded-lg px-4 py-2 text-sm
+                   {{ '' if status.available else 'opacity-60' }}">
+      {{ 'Conectar conta B3' if status.available else 'Conectar (indisponível)' }}
+    </button>
+  </form>
+
+  <div class="mt-6 pt-5 border-t border-slate-800 text-sm text-slate-400 space-y-2">
+    <div class="font-medium text-slate-200">Arquitetura pronta</div>
+    <p>O cliente <code class="text-slate-300">B3InvestidorClient</code> já expõe os pontos de extensão
+    (<code>authenticate</code>, <code>get_movements</code>) e o mapeamento <code>to_trades()</code>
+    para o modelo interno. Basta ativar quando as credenciais OAuth2 estiverem disponíveis.</p>
+    <p class="text-xs text-slate-600">Defina <code>B3_ENABLED=1</code>, <code>B3_CLIENT_ID</code> e
+    <code>B3_CLIENT_SECRET</code> no ambiente para habilitar.</p>
+  </div>
+</div>
+{% endblock %}
