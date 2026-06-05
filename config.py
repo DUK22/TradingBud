@@ -57,10 +57,15 @@ class Config:
     # Rate limiting (Flask-Limiter). Em produção use Redis: redis://host:6379
     RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
 
-    # --- Banco de dados (SQLite por padrão, para portabilidade inicial) ---
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or (
+    # --- Banco de dados (SQLite por padrão; PostgreSQL em produção) ---
+    _db_url = os.environ.get("DATABASE_URL") or (
         "sqlite:///" + os.path.join(instance_dir, "ir_traders.db")
     )
+    # Provedores (Render/Heroku) usam o esquema antigo "postgres://"; o
+    # SQLAlchemy 2.x exige "postgresql://".
+    if _db_url.startswith("postgres://"):
+        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+    SQLALCHEMY_DATABASE_URI = _db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # --- Upload de notas de corretagem ---

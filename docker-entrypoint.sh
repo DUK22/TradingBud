@@ -6,5 +6,5 @@ set -e
 echo "Aplicando migrações (flask db upgrade)..."
 flask --app wsgi db upgrade
 
-# Sobe o servidor (CMD do Dockerfile).
-exec "$@"
+# Sobe o gunicorn na porta fornecida pelo provedor (Render define $PORT).
+exec gunicorn -b "0.0.0.0:${PORT:-8000}" -w "${WEB_CONCURRENCY:-3}" wsgi:app

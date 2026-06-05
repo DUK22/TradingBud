@@ -30,4 +30,3 @@ COPY --from=css /build/app/static/app.css ./app/static/app.css
 RUN chmod +x docker-entrypoint.sh
 EXPOSE 8000
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["gunicorn", "-b", "0.0.0.0:8000", "-w", "3", "wsgi:app"]

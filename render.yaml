@@ -1,0 +1,32 @@
+# Blueprint do Render (https://render.com). Suba o repo no GitHub e use
+# "New > Blueprint" apontando para este arquivo. Cria a web app (Docker) e um
+# PostgreSQL gerenciado, já conectados.
+#
+# IMPORTANTE: defina CPF_ENC_KEY manualmente no painel (chave Fernet) — não é
+# gerável automaticamente. Gere com:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+services:
+  - type: web
+    name: ir-traders
+    runtime: docker
+    plan: free
+    healthCheckPath: /login
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SKIP_SCHEMA_INIT      # migrações rodam no entrypoint, não nos workers
+        value: "1"
+      - key: WEB_CONCURRENCY
+        value: "3"
+      - key: SECRET_KEY            # gerado automaticamente pelo Render
+        generateValue: true
+      - key: CPF_ENC_KEY           # defina manualmente (chave Fernet) no painel
+        sync: false
+      - key: DATABASE_URL          # injetado a partir do banco abaixo
+        fromDatabase:
+          name: ir-traders-db
+          property: connectionString
+
+databases:
+  - name: ir-traders-db
+    plan: free

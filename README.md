@@ -74,20 +74,104 @@ ir-traders/
 
 ```bash
 pip install -r requirements.txt
+cp .env.example .env    # ajuste SECRET_KEY etc. (opcional em dev)
 python seed.py          # opcional: cria dados de demonstração
 python run.py           # http://127.0.0.1:5000
 ```
 
 **Login de demonstração:** `demo@trader.com` / `demo1234`
 
-## Testes
+### Configuração / segurança
+
+Variáveis de ambiente (veja `.env.example`):
+
+| Variável | Padrão | Observação |
+|----------|--------|------------|
+| `SECRET_KEY` | gerada em dev | **obrigatória** quando `FLASK_ENV=production` |
+| `CPF_ENC_KEY` | fallback dev | chave Fernet; **obrigatória** em produção (CPF criptografado) |
+| `FLASK_ENV` | `development` | em `production` liga cookies `Secure`/HSTS/ProxyFix |
+| `FLASK_DEBUG` | `0` | `1` só em dev (o debugger expõe console RCE) |
+| `DATABASE_URL` | SQLite local | ex.: `postgresql://...` (Postgres em produção) |
+| `RATELIMIT_STORAGE_URI` | `memory://` | use Redis em produção (múltiplos workers) |
+
+Já incluído: **CSRF** em todas as rotas POST, **rate limiting** no login/cadastro,
+cabeçalhos de segurança (**CSP, HSTS, X-Frame-Options, X-Content-Type-Options**),
+cookies `HttpOnly`/`SameSite`. **LGPD:** CPF criptografado em repouso (Fernet) e,
+em *Minha conta*, exportação (JSON) e exclusão da conta com remoção em cascata.
+
+### Banco de dados e migrações (Alembic)
+
+Schema versionado com **Flask-Migrate**. Em dev as migrações são aplicadas no
+startup. Após alterar os modelos:
 
 ```bash
-python tests/test_tax_engine.py     # ou: pytest -q
+export FLASK_APP=run.py
+flask db migrate -m "descrição"   # gera a migração
+flask db upgrade                  # aplica
 ```
 
-Cobrem: preço médio ponderado, detecção de day trade, isenção de R$20k,
-alíquotas 15%/20%, compensação de prejuízo e separação das modalidades.
+Em produção, aplique no deploy (`flask db upgrade`) e use `SKIP_SCHEMA_INIT=1`
+(evita corrida entre workers).
+
+### Front-end (Tailwind)
+
+O CSS é **gerado localmente** (sem CDN). Para regenerar após mexer nos templates
+(precisa de Node): `npm install && npm run build:css`. O `app/static/app.css` já
+vem versionado, então a app roda sem Node; no Docker o CSS é recompilado no build.
+
+## Produção (WSGI / Docker)
+
+Não use o servidor de desenvolvimento em produção. Use um WSGI:
+
+```bash
+pip install -r requirements.txt -r requirements-prod.txt
+gunicorn -b 0.0.0.0:8000 -w 3 wsgi:app          # Linux
+waitress-serve --listen=0.0.0.0:8000 wsgi:app   # Windows
+```
+
+**Docker** (multi-stage: compila o CSS e roda gunicorn):
+
+```bash
+docker build -t ir-traders .
+docker run -p 8000:8000 \
+  -e SECRET_KEY="..." -e CPF_ENC_KEY="..." ir-traders
+```
+
+### Deploy no Render (acesso pelo celular, sempre no ar)
+
+1. Suba o projeto no **GitHub** (veja "Salvar na nuvem" abaixo).
+2. Gere uma chave Fernet para o CPF:
+   `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
+3. No [Render](https://render.com): **New → Blueprint**, aponte para o repositório
+   (ele lê o `render.yaml`) e crie. Isso provisiona a web app (Docker) **e** um
+   PostgreSQL grátis, já conectados.
+4. No serviço criado, defina a variável **`CPF_ENC_KEY`** com a chave do passo 2
+   (o `SECRET_KEY` o Render gera sozinho).
+5. O deploy aplica as migrações e sobe o gunicorn; você recebe uma URL `https://…`
+   acessível de qualquer celular. (Planos free hibernam e o Postgres expira em
+   ~90 dias — para uso sério, suba de plano.)
+
+> **Por que não Vercel?** A Vercel é feita para apps serverless/estáticos; um Flask
+> com banco não encaixa bem lá. Render/Railway/Fly.io rodam nosso Docker direto.
+
+### Salvar na nuvem (GitHub)
+
+As mudanças já são salvas em **git** localmente (`git add -A && git commit -m "..."`).
+Para backup online e histórico: crie um repositório no GitHub e
+`git remote add origin <url>` + `git push -u origin main`.
+
+## Testes e lint
+
+```bash
+pip install -r requirements-dev.txt
+pytest            # 34 testes
+ruff check .      # lint
+```
+
+Cobertura: motor fiscal, parser OCR (BOVESPA e BM&F), autenticação e
+**isolamento entre usuários**, filtros, mapeamento B3, paginação, criptografia
+de CPF, exportação/exclusão de conta e geração da DARF em PDF. CI roda `ruff` +
+`pytest` a cada push/PR (`.github/workflows/ci.yml`).
 
 ## Regras fiscais e simplificações (MVP)
 
@@ -109,10 +193,13 @@ BTG** — ajustamos as expressões com base no texto extraído (salvo em
 
 ## Roadmap
 
+- Relatório anual consolidado para a DIRPF.
 - Ativar OAuth2 da B3 e sincronização automática (cliente já preparado).
-- Geração de DARF (PDF) e relatório anual para a DIRPF.
 - OCR de notas escaneadas (imagem) via Tesseract.
 - Suporte a FIIs, ETFs, opções e mercado futuro com regras específicas.
+
+Já entregue: DARF em PDF, dashboard com métricas (win rate, melhor/pior),
+sparklines e barra de isenção de R$20k.
 
 ## Acesso rápido
 

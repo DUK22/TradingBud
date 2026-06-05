@@ -95,6 +95,12 @@ def create_app(config_class=Config):
     if not app.config.get("TESTING"):
         _configure_logging()
 
+    # Atrás de um proxy (Render/Heroku/Nginx) que termina o TLS: confia nos
+    # cabeçalhos X-Forwarded-* para enxergar https/host corretos.
+    if app.config.get("SESSION_COOKIE_SECURE"):
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
     # Garante diretórios de instância/uploads
     os.makedirs(instance_dir, exist_ok=True)
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)

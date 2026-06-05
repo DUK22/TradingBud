@@ -6,3 +6,5 @@
 gunicorn==23.0.0
 # Windows (alternativa pura-Python ao gunicorn):
 waitress==3.0.0
+# Driver PostgreSQL (produção; o binário já traz a libpq):
+psycopg2-binary==2.9.9
