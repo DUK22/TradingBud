@@ -125,6 +125,7 @@
   const SAVED = {{ saved_layout|safe }};
   const $ = id => document.getElementById(id);
   const brl = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
+  const PV = {{ point_values|tojson }};   // valores de ponto (definido cedo: usado pelas calculadoras)
 
   // Catálogo de blocos disponíveis
   const CATALOG = {
@@ -194,7 +195,7 @@
       <div class="widget-body"></div></div></div>`;
     grid.el.appendChild(wrap);
     grid.makeWidget(wrap);
-    renderBody(wrap, node.type);
+    try { renderBody(wrap, node.type); } catch (err) { console.error('Bloco', node.type, err); }
     wrap.querySelector('.rm-btn').addEventListener('click', () => {
       grid.removeWidget(wrap); saveLayout(); buildAddMenu();
     });
@@ -268,7 +269,6 @@
   });
 
   // ---- Calculadoras ----
-  const PV = {{ point_values|tojson }};
   function fillContracts(sel){ sel.innerHTML=''; Object.keys(PV).forEach(k=>{ const o=document.createElement('option');
     o.value=k; o.textContent=`${k} (R$ ${PV[k].toLocaleString('pt-BR')}/pt)`; sel.appendChild(o); }); }
   function calcPS(){ const pv=PV[$('ps-contract').value]||0, risk=parseFloat($('ps-risk').value)||0, stop=parseFloat($('ps-stop').value)||0;
