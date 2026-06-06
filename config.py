@@ -76,6 +76,12 @@ class Config:
     # --- Paginação das listagens (notas, negócios) ---
     ITEMS_PER_PAGE = int(os.environ.get("ITEMS_PER_PAGE", "25"))
 
+    # --- IA (insights do diário) — opcional ---
+    # Sem ANTHROPIC_API_KEY o recurso fica desabilitado (degrada com aviso).
+    ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+    # Padrão: modelo mais capaz. Para reduzir custo, defina ANTHROPIC_MODEL=claude-haiku-4-5
+    ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
+
     # --- Integração futura com a B3 (Área do Investidor) ---
     # Placeholders: a API oficial ainda exige convênio/credenciais.
     B3_API_BASE_URL = os.environ.get("B3_API_BASE_URL", "https://investidor.b3.com.br/api/v1")

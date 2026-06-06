@@ -7,6 +7,7 @@ from flask_login import current_user, login_required
 
 from .extensions import db
 from .models import Note
+from .services import ai_insights
 
 journal_bp = Blueprint("journal", __name__)
 
@@ -84,7 +85,18 @@ def new_note():
 @journal_bp.route("/diario/<int:note_id>")
 @login_required
 def edit_note(note_id):
-    return render_template("journal_edit.html", note=_owned(note_id))
+    return render_template("journal_edit.html", note=_owned(note_id),
+                           ai_enabled=ai_insights.is_enabled())
+
+
+@journal_bp.route("/diario/<int:note_id>/analisar", methods=["POST"])
+@login_required
+def analyze_note(note_id):
+    """Análise da anotação com IA (Claude). Devolve JSON estruturado."""
+    note = _owned(note_id)
+    body_text = bleach.clean(note.body or "", tags=[], strip=True)
+    result = ai_insights.analyze_note(note.title, note.tags, note.asset, body_text)
+    return jsonify(result)
 
 
 @journal_bp.route("/diario/<int:note_id>", methods=["POST"])
