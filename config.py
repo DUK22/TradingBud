@@ -76,6 +76,10 @@ class Config:
     # --- Paginação das listagens (notas, negócios) ---
     ITEMS_PER_PAGE = int(os.environ.get("ITEMS_PER_PAGE", "25"))
 
+    # --- Estimativa de custos da nota provisória (% sobre o volume) ---
+    # ~0,03% cobre emolumentos + liquidação da B3 de forma aproximada.
+    B3_COST_RATE = os.environ.get("B3_COST_RATE", "0.0003")
+
     # --- IA (insights do diário) — opcional ---
     # Sem ANTHROPIC_API_KEY o recurso fica desabilitado (degrada com aviso).
     ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")

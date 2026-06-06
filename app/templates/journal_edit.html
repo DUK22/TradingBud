@@ -67,8 +67,57 @@
 </div>
 {% endif %}
 
-<p class="mt-3 text-xs text-slate-600">Dica: use o botão de imagem na barra para colar prints (ficam salvos na nota). “Ditar” transforma sua fala em texto (Chrome/Edge).</p>
-{% endblock %}
+<p class="mt-3 text-xs text-slate-600">Dica: use o botão de imagem na barra para colar prints (ficam salvos na nota). “Ditar” transforma sua fala em texto (Chrome/Edge).</p><p class="mt-2 text-xs text-emerald-600/80">💡 Novo: Clique em "Analisar com IA" para obter insights. Você pode salvar a análise como bloco separado ou integrado no texto, e todas as análises ficarão no histórico abaixo para consulta futura.</p>
+<!-- Modal de Análise da IA para Salvar -->
+<div id="analysisModal" class="modal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+  <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h3 style="margin: 0; color: #1f2937;">🤖 Análise da IA</h3>
+      <button onclick="closeAnalysisModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">&times;</button>
+    </div>
+    <div id="analysisResult" style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0; color: #374151;"></div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <button onclick="saveAnalysisSeparate()" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">💾 Salvar como bloco</button>
+      <button onclick="saveAnalysisIntegrated()" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">📝 Integrar no texto</button>
+      <button onclick="closeAnalysisModal()" style="padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">❌ Descartar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Histórico de Análises -->
+<div id="analysisHistory" style="margin-top: 30px; padding: 20px; background: #eff6ff; border-radius: 12px; border: 1px solid #bfdbfe;">
+  <h4 style="margin-top: 0; color: #1e40af;">📊 Histórico de Análises</h4>
+  {% if note.analysis_history and note.analysis_history|length > 0 %}
+    {% for analysis in note.analysis_history %}
+      <details style="margin: 15px 0; padding: 15px; border: 1px solid #93c5fd; border-radius: 8px; background: white;">
+        <summary style="cursor: pointer; font-weight: bold; color: #1e40af; user-select: none;">
+          🤖 {{ analysis.timestamp[:10] }} às {{ analysis.timestamp[11:16] }}
+          {% if analysis.saved_as == 'integrated' %}<span style="color: green; font-size: 12px;">[Integrada]</span>{% else %}<span style="color: #3b82f6; font-size: 12px;">[Bloco]</span>{% endif %}
+        </summary>
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dbeafe; color: #374151;">
+          <p style="margin: 10px 0;"><strong>📌 Resumo:</strong> {{ analysis.resumo }}</p>
+          {% if analysis.pontos_fortes and analysis.pontos_fortes|length > 0 %}
+            <p style="margin: 10px 0;"><strong>✅ Pontos Fortes:</strong></p>
+            <ul style="margin: 5px 0 10px 25px;">
+              {% for ponto in analysis.pontos_fortes %}<li>{{ ponto }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+          {% if analysis.alertas and analysis.alertas|length > 0 %}
+            <p style="margin: 10px 0;"><strong>⚠️ Alertas:</strong></p>
+            <ul style="margin: 5px 0 10px 25px;">
+              {% for alerta in analysis.alertas %}<li>{{ alerta }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+          {% if analysis.dica %}
+            <p style="margin: 10px 0;"><strong>💡 Dica:</strong> <em>{{ analysis.dica }}</em></p>
+          {% endif %}
+        </div>
+      </details>
+    {% endfor %}
+  {% else %}
+    <p style="color: #999; margin: 0;">Nenhuma análise salva ainda.</p>
+  {% endif %}
+</div>{% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
@@ -147,20 +196,11 @@
   // ---- Análise com IA ----
   const escapeHtml = s => { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
   function renderAI(d) {
-    const panel = $('ai-panel'), content = $('ai-content');
-    panel.classList.remove('hidden');
-    if (!d.ok) { content.innerHTML = `<span class="text-red-300">${escapeHtml(d.error || 'Erro ao analisar.')}</span>`; return; }
-    const a = d.analysis || {};
-    const list = arr => (arr && arr.length)
-      ? '<ul class="mt-1 list-disc space-y-0.5 pl-5">' + arr.map(x => `<li>${escapeHtml(x)}</li>`).join('') + '</ul>'
-      : '<div class="mt-1 text-slate-500">—</div>';
-    content.innerHTML = `
-      <p>${escapeHtml(a.resumo)}</p>
-      <div class="mt-3 grid gap-3 sm:grid-cols-2">
-        <div><div class="text-xs uppercase tracking-wider text-emerald-300/80">Pontos fortes</div>${list(a.pontos_fortes)}</div>
-        <div><div class="text-xs uppercase tracking-wider text-amber-300/80">Alertas</div>${list(a.alertas)}</div>
-      </div>
-      <div class="mt-3"><span class="text-xs uppercase tracking-wider text-slate-400">Dica:</span> ${escapeHtml(a.dica)}</div>`;
+    if (!d.ok) { 
+      alert("❌ Erro: " + (d.error || 'Erro ao analisar.'));
+      return; 
+    }
+    openAnalysisModal(d.analysis || {});
   }
   const aiBtn = $('btn-ai');
   if (aiBtn) {
@@ -181,5 +221,65 @@
       aiBtn.disabled = false; $('ai-label').textContent = 'Analisar com IA';
     });
   }
+
+  // ---- Salvar análise da IA ----
+  let currentAnalysisData = null;
+  
+  function openAnalysisModal(analysisData) {
+    currentAnalysisData = analysisData;
+    const result = document.getElementById('analysisResult');
+    result.innerHTML = `
+      <p style="margin: 10px 0;"><strong>📌 Resumo:</strong> ${escapeHtml(analysisData.resumo || 'N/A')}</p>
+      ${analysisData.pontos_fortes?.length ? `
+        <p style="margin: 10px 0;"><strong>✅ Pontos Fortes:</strong></p>
+        <ul style="margin: 5px 0 10px 20px;">${analysisData.pontos_fortes.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul>
+      ` : ''}
+      ${analysisData.alertas?.length ? `
+        <p style="margin: 10px 0;"><strong>⚠️ Alertas:</strong></p>
+        <ul style="margin: 5px 0 10px 20px;">${analysisData.alertas.map(a => `<li>${escapeHtml(a)}</li>`).join('')}</ul>
+      ` : ''}
+      ${analysisData.dica ? `<p style="margin: 10px 0;"><strong>💡 Dica:</strong> <em>${escapeHtml(analysisData.dica)}</em></p>` : ''}
+    `;
+    document.getElementById('analysisModal').style.display = 'flex';
+  }
+  
+  function closeAnalysisModal() {
+    document.getElementById('analysisModal').style.display = 'none';
+    currentAnalysisData = null;
+  }
+  
+  function saveAnalysisSeparate() {
+    saveAnalysis('separate');
+  }
+  
+  function saveAnalysisIntegrated() {
+    saveAnalysis('integrated');
+  }
+  
+  function saveAnalysis(savedAs) {
+    if (!currentAnalysisData) return;
+    const noteId = {{ note.id }};
+    fetch(`/diario/${noteId}/salvar-analise`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify({ ...currentAnalysisData, saved_as: savedAs })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        alert('✅ Análise salva com sucesso! A página será recarregada.');
+        closeAnalysisModal();
+        location.reload();
+      } else {
+        alert('❌ Erro ao salvar: ' + (data.error || 'Desconhecido'));
+      }
+    })
+    .catch(e => alert('❌ Erro: ' + e.message));
+  }
+  
+  // Fechar modal ao clicar fora
+  window.addEventListener('click', (e) => {
+    const modal = document.getElementById('analysisModal');
+    if (e.target === modal) closeAnalysisModal();
+  });
 </script>
-{% endblock %}

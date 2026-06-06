@@ -159,6 +159,7 @@ class Note(db.Model):
     body = db.Column(db.Text, default="")            # HTML sanitizado (Quill)
     tags = db.Column(db.String(255), default="")     # separadas por vírgula
     asset = db.Column(db.String(20), index=True)     # ticker vinculado (opcional)
+    analysis_history = db.Column(db.JSON, default=list, nullable=True)  # histórico de análises da IA
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 

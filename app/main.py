@@ -22,7 +22,7 @@ from werkzeug.utils import secure_filename
 
 from .extensions import db
 from .models import B3Connection, BrokerageNote, Note, Trade, User
-from .services import b3_import, contracts, darf_pdf, ocr, tax_engine
+from .services import b3_import, contracts, darf_pdf, fees, ocr, tax_engine
 from .services.b3_client import B3Config, sync_status
 
 main_bp = Blueprint("main", __name__)
@@ -60,7 +60,26 @@ def importar_parsed_note(user, parsed, filename=None, source="OCR") -> Brokerage
             quantity=t.quantity, price=t.price, gross_value=t.gross_value,
         ))
     db.session.commit()
+    _remove_provisional(user.id, {note.trade_date})   # nota oficial substitui a provisória
     return note
+
+
+def _remove_provisional(user_id, dates) -> int:
+    """Remove notas provisórias do usuário nas datas informadas (reconciliação)."""
+    dates = {d for d in dates if d}
+    if not dates:
+        return 0
+    q = BrokerageNote.query.filter(
+        BrokerageNote.user_id == user_id,
+        BrokerageNote.provisional.is_(True),
+        BrokerageNote.trade_date.in_(dates))
+    n = 0
+    for note in q.all():
+        db.session.delete(note)
+        n += 1
+    if n:
+        db.session.commit()
+    return n
 
 
 def _user_notes():
@@ -319,6 +338,62 @@ def note_manual():
         flash("Negócio lançado manualmente.", "success")
         return redirect(url_for("main.trades"))
     return render_template("note_manual.html", hoje=date.today().isoformat())
+
+
+@main_bp.route("/notas/provisoria", methods=["GET", "POST"])
+@login_required
+def note_provisional():
+    """Nota provisória do dia: lança vários negócios, estima custos e marca como
+    provisória. Substituída automaticamente quando a nota oficial é importada."""
+    if request.method == "POST":
+        try:
+            td = datetime.strptime(request.form["trade_date"], "%Y-%m-%d").date()
+        except (KeyError, ValueError):
+            flash("Informe a data do pregão.", "error")
+            return redirect(request.url)
+
+        assets = request.form.getlist("asset")
+        markets = request.form.getlist("market")
+        sides = request.form.getlist("side")
+        qtys = request.form.getlist("quantity")
+        prices = request.form.getlist("price")
+
+        parsed_trades, volume = [], Decimal("0")
+        for i, asset in enumerate(assets):
+            asset = (asset or "").upper().strip()
+            if not asset:
+                continue
+            try:
+                qty = Decimal((qtys[i] or "0").replace(",", "."))
+                price = Decimal((prices[i] or "0").replace(",", "."))
+            except (IndexError, InvalidOperation):
+                continue
+            if qty <= 0 or price < 0:
+                continue
+            gross = qty * price
+            volume += gross
+            parsed_trades.append((asset, (markets[i] if i < len(markets) else "VISTA"),
+                                  (sides[i] if i < len(sides) else "C"), qty, price, gross))
+
+        if not parsed_trades:
+            flash("Adicione pelo menos um negócio válido.", "error")
+            return redirect(request.url)
+
+        custo = fees.estimate_costs(volume)
+        note = BrokerageNote(
+            user_id=current_user.id, broker="PROVISÓRIA", trade_date=td, source="MANUAL",
+            provisional=True, emolumentos=custo, net_value=volume)
+        db.session.add(note)
+        db.session.flush()
+        for asset, market, side, qty, price, gross in parsed_trades:
+            db.session.add(Trade(
+                user_id=current_user.id, note_id=note.id, trade_date=td, asset=asset,
+                market=market, side=side, quantity=qty, price=price, gross_value=gross))
+        db.session.commit()
+        flash(f"Nota provisória criada ({len(parsed_trades)} negócio[s], custo estimado "
+              f"{custo}). Será substituída ao importar a oficial.", "success")
+        return redirect(url_for("main.apuracao"))
+    return render_template("note_provisional.html", hoje=date.today().isoformat())
 
 
 # --------------------------------------------------------------------------- #
@@ -596,6 +671,7 @@ def b3_import_upload():
                 asset=t["asset"], market=t["market"], side=t["side"],
                 quantity=t["quantity"], price=t["price"], gross_value=t["gross_value"]))
     db.session.commit()
+    _remove_provisional(current_user.id, {d for (_, d) in groups})  # substitui provisórias
 
     msg = f"Importação concluída: {len(trades)} negócio(s) em {len(groups)} dia(s)."
     if parsed["warnings"]:

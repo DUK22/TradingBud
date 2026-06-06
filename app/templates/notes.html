@@ -6,10 +6,16 @@
     <h1 class="text-2xl font-semibold tracking-tight text-white">Notas de corretagem</h1>
     <p class="mt-1 text-sm text-slate-500">Histórico importado e lançamentos manuais.</p>
   </div>
-  <a href="{{ url_for('main.upload') }}"
-     class="inline-flex items-center justify-center rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">
-    Importar
-  </a>
+  <div class="flex gap-2">
+    <a href="{{ url_for('main.note_provisional') }}"
+       class="inline-flex items-center justify-center rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/[0.04]">
+      Nota do dia (provisória)
+    </a>
+    <a href="{{ url_for('main.upload') }}"
+       class="inline-flex items-center justify-center rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">
+      Importar
+    </a>
+  </div>
 </div>
 
 {% if not pagination.items %}
@@ -35,7 +41,8 @@
       {% for n in pagination.items %}
       <tr class="hover:bg-white/[0.03]">
         <td class="px-4 py-3">{{ n.trade_date.strftime('%d/%m/%Y') }}</td>
-        <td class="px-4 py-3 font-medium text-slate-200">{{ n.broker }}</td>
+        <td class="px-4 py-3 font-medium text-slate-200">{{ n.broker }}
+          {% if n.provisional %}<span class="ml-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-medium text-amber-300">provisória</span>{% endif %}</td>
         <td class="px-4 py-3 text-slate-500">{{ n.note_number or '—' }}</td>
         <td class="px-4 py-3 text-right">{{ n.trades|length }}</td>
         <td class="px-4 py-3 text-right text-slate-500">{{ n.total_costs|brl }}</td>
@@ -54,7 +61,8 @@
      class="block rounded-lg border border-white/10 bg-slate-900/70 p-4 shadow-sm">
     <div class="flex items-start justify-between gap-3">
       <div class="min-w-0">
-        <div class="truncate font-medium text-white">{{ n.broker }}</div>
+        <div class="truncate font-medium text-white">{{ n.broker }}
+          {% if n.provisional %}<span class="rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[10px] text-amber-300">provisória</span>{% endif %}</div>
         <div class="mt-1 text-xs text-slate-500">{{ n.trade_date.strftime('%d/%m/%Y') }} · {{ n.source }}</div>
       </div>
       <span class="shrink-0 rounded-full bg-white/[0.04] px-2 py-1 text-xs text-slate-400">{{ n.trades|length }} negócios</span>

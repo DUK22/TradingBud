@@ -102,6 +102,30 @@ def analyze_note(note_id):
     return jsonify(result)
 
 
+@journal_bp.route("/diario/<int:note_id>/salvar-analise", methods=["POST"])
+@login_required
+def save_analysis(note_id):
+    """Salva resultado da IA no histórico da nota."""
+    note = _owned(note_id)
+    data = request.get_json(silent=True) or {}
+
+    analysis = {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "resumo": data.get("resumo", ""),
+        "pontos_fortes": data.get("pontos_fortes", []),
+        "alertas": data.get("alertas", []),
+        "dica": data.get("dica", ""),
+        "saved_as": data.get("saved_as", "separate")  # "separate" ou "integrated"
+    }
+
+    if not note.analysis_history:
+        note.analysis_history = []
+    note.analysis_history.append(analysis)
+    db.session.commit()
+
+    return jsonify({"ok": True, "analysis": analysis})
+
+
 # --------------------------------------------------------------------------- #
 # Coach (estratégia + checklist + chat + resumo) — usa IA
 # --------------------------------------------------------------------------- #
