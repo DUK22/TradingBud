@@ -46,6 +46,10 @@
   </button>
   <button data-tpl="pre" class="tpl-btn rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-300 hover:bg-white/[0.04]">+ Plano pré-trade</button>
   <button data-tpl="pos" class="tpl-btn rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-300 hover:bg-white/[0.04]">+ Revisão pós-trade</button>
+  <button id="btn-annot" type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-300 hover:bg-white/[0.04]">
+    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3zM4 20h16"/></svg>
+    Anotar imagem
+  </button>
   {% if ai_enabled %}
   <button id="btn-ai" type="button" class="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/40 px-3 py-1.5 text-sm font-medium text-emerald-300 hover:bg-emerald-400/10">
     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3l1.5 4L11 8.5 6.5 10 5 14l-1.5-4L-1 8.5 3.5 7zM17 11l1 3 3 1-3 1-1 3-1-3-3-1 3-1z"/></svg>
@@ -69,7 +73,7 @@
 
 <p class="mt-3 text-xs text-slate-600">Dica: use o botão de imagem na barra para colar prints (ficam salvos na nota). “Ditar” transforma sua fala em texto (Chrome/Edge).</p><p class="mt-2 text-xs text-emerald-600/80">💡 Novo: Clique em "Analisar com IA" para obter insights. Você pode salvar a análise como bloco separado ou integrado no texto, e todas as análises ficarão no histórico abaixo para consulta futura.</p>
 <!-- Modal de Análise da IA para Salvar -->
-<div id="analysisModal" class="modal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+<div id="analysisModal" class="modal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
   <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <h3 style="margin: 0; color: #1f2937;">🤖 Análise da IA</h3>
@@ -117,6 +121,38 @@
   {% else %}
     <p style="color: #999; margin: 0;">Nenhuma análise salva ainda.</p>
   {% endif %}
+</div>
+
+<!-- Modal: anotar imagem (desenhar sobre prints) -->
+<div id="annot-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 p-4">
+  <div class="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-900">
+    <div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
+      <div class="text-sm font-medium text-white">Anotar imagem</div>
+      <button id="annot-close" type="button" class="text-slate-400 hover:text-slate-200">✕</button>
+    </div>
+    <div class="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-2 text-sm">
+      <label class="cursor-pointer rounded-lg border border-white/10 px-3 py-1.5 text-slate-300 hover:bg-white/[0.04]">
+        Escolher imagem<input id="annot-file" type="file" accept="image/*" class="hidden"></label>
+      <span class="mx-1 h-5 w-px bg-white/10"></span>
+      <button type="button" data-tool="pen" class="annot-tool rounded-lg border border-white/10 px-3 py-1.5 text-slate-300">Lápis</button>
+      <button type="button" data-tool="rect" class="annot-tool rounded-lg border border-white/10 px-3 py-1.5 text-slate-300">Retângulo</button>
+      <button type="button" data-tool="arrow" class="annot-tool rounded-lg border border-white/10 px-3 py-1.5 text-slate-300">Seta</button>
+      <span class="mx-1 h-5 w-px bg-white/10"></span>
+      <button type="button" data-color="#ef4444" class="annot-color h-6 w-6 rounded-full ring-offset-2 ring-offset-slate-900" style="background:#ef4444"></button>
+      <button type="button" data-color="#34d399" class="annot-color h-6 w-6 rounded-full ring-offset-2 ring-offset-slate-900" style="background:#34d399"></button>
+      <button type="button" data-color="#fbbf24" class="annot-color h-6 w-6 rounded-full ring-offset-2 ring-offset-slate-900" style="background:#fbbf24"></button>
+      <button type="button" data-color="#ffffff" class="annot-color h-6 w-6 rounded-full ring-offset-2 ring-offset-slate-900" style="background:#ffffff"></button>
+      <button id="annot-clear" type="button" class="ml-auto rounded-lg border border-white/10 px-3 py-1.5 text-slate-300 hover:bg-white/[0.04]">Limpar</button>
+    </div>
+    <div class="flex-1 overflow-auto bg-slate-950 p-4 text-center">
+      <canvas id="annot-canvas" class="mx-auto max-w-full cursor-crosshair rounded border border-white/10"></canvas>
+      <p id="annot-hint" class="mt-3 text-xs text-slate-500">Escolha uma imagem para começar.</p>
+    </div>
+    <div class="flex justify-end gap-2 border-t border-white/10 px-4 py-3">
+      <button id="annot-cancel" type="button" class="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/[0.04]">Cancelar</button>
+      <button id="annot-insert" type="button" class="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">Inserir no diário</button>
+    </div>
+  </div>
 </div>{% endblock %}
 
 {% block scripts %}
@@ -282,4 +318,80 @@
     const modal = document.getElementById('analysisModal');
     if (e.target === modal) closeAnalysisModal();
   });
+
+  // ---- Anotar imagem (desenhar sobre prints) ----
+  (function () {
+    const modal = $('annot-modal'), canvas = $('annot-canvas');
+    if (!modal || !canvas) return;
+    const ctx = canvas.getContext('2d');
+    let tool = 'pen', color = '#ef4444', drawing = false, sx = 0, sy = 0;
+    let base = null, orig = null, hasImg = false;
+    const openM = () => { modal.classList.remove('hidden'); modal.classList.add('flex'); };
+    const closeM = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); };
+    $('btn-annot').addEventListener('click', openM);
+    $('annot-close').addEventListener('click', closeM);
+    $('annot-cancel').addEventListener('click', closeM);
+    function setActive(sel, el) {
+      document.querySelectorAll(sel).forEach(x => x.classList.remove('ring-2', 'ring-emerald-400'));
+      el.classList.add('ring-2', 'ring-emerald-400');
+    }
+    document.querySelectorAll('.annot-tool').forEach(b =>
+      b.addEventListener('click', () => { tool = b.dataset.tool; setActive('.annot-tool', b); }));
+    document.querySelectorAll('.annot-color').forEach(b =>
+      b.addEventListener('click', () => { color = b.dataset.color; setActive('.annot-color', b); }));
+    $('annot-file').addEventListener('change', (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, 900 / img.width);
+        canvas.width = img.width * scale; canvas.height = img.height * scale;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        orig = ctx.getImageData(0, 0, canvas.width, canvas.height); base = orig;
+        hasImg = true; $('annot-hint').textContent = 'Arraste sobre a imagem para desenhar.';
+      };
+      img.src = URL.createObjectURL(f);
+    });
+    const snap = () => { base = ctx.getImageData(0, 0, canvas.width, canvas.height); };
+    const restore = () => { if (base) ctx.putImageData(base, 0, 0); };
+    function pos(e) {
+      const r = canvas.getBoundingClientRect();
+      const t = e.touches ? e.touches[0] : e;
+      return { x: (t.clientX - r.left) * (canvas.width / r.width),
+               y: (t.clientY - r.top) * (canvas.height / r.height) };
+    }
+    function arrow(x1, y1, x2, y2) {
+      const h = 12, a = Math.atan2(y2 - y1, x2 - x1);
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - h * Math.cos(a - Math.PI / 6), y2 - h * Math.sin(a - Math.PI / 6));
+      ctx.lineTo(x2 - h * Math.cos(a + Math.PI / 6), y2 - h * Math.sin(a + Math.PI / 6));
+      ctx.closePath(); ctx.fill();
+    }
+    function down(e) {
+      if (!hasImg) return; e.preventDefault(); drawing = true;
+      const p = pos(e); sx = p.x; sy = p.y;
+      ctx.lineWidth = 3; ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineCap = 'round';
+      if (tool === 'pen') { ctx.beginPath(); ctx.moveTo(sx, sy); }
+    }
+    function move(e) {
+      if (!drawing) return; e.preventDefault(); const p = pos(e);
+      if (tool === 'pen') { ctx.lineTo(p.x, p.y); ctx.stroke(); }
+      else { restore(); if (tool === 'rect') ctx.strokeRect(sx, sy, p.x - sx, p.y - sy); else arrow(sx, sy, p.x, p.y); }
+    }
+    function up() { if (drawing) { drawing = false; snap(); } }
+    canvas.addEventListener('mousedown', down); canvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    canvas.addEventListener('touchstart', down, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    window.addEventListener('touchend', up);
+    $('annot-clear').addEventListener('click', () => { if (orig) { ctx.putImageData(orig, 0, 0); base = orig; } });
+    $('annot-insert').addEventListener('click', () => {
+      if (!hasImg) { closeM(); return; }
+      const url = canvas.toDataURL('image/png');
+      const range = quill.getSelection(true);
+      quill.insertEmbed(range ? range.index : quill.getLength(), 'image', url, 'user');
+      scheduleSave(); closeM();
+    });
+  })();
 </script>
+{% endblock %}
