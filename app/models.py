@@ -35,6 +35,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     cpf = db.Column(EncryptedString())  # criptografado em repouso (LGPD)
     layout_mercado = db.Column(db.Text)  # JSON do layout da página Mercado
+    strategy = db.Column(db.Text)        # estratégia do trader (contexto p/ a IA)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     notes = db.relationship(
@@ -93,6 +94,7 @@ class BrokerageNote(db.Model):
     irrf_swing = db.Column(NUM, default=0)        # 0,005% "dedo-duro" s/ vendas
 
     net_value = db.Column(NUM, default=0)         # líquido a receber/pagar
+    provisional = db.Column(db.Boolean, default=False, nullable=False)  # estimativa do dia
     filename = db.Column(db.String(255))
     raw_text = db.Column(db.Text)                 # texto extraído (auditoria)
     created_at = db.Column(db.DateTime, default=utcnow)

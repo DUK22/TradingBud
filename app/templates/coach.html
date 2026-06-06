@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Coach · IR Traders{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-semibold tracking-tight text-white">Coach</h1>
+  <p class="mt-1 text-sm text-slate-500">Sua estratégia + IA para revisar planos e o diário (apoio educacional, não recomendação).</p>
+</div>
+
+<div class="grid gap-6 lg:grid-cols-3">
+  <!-- Estratégia -->
+  <div class="lg:col-span-1 rounded-xl border border-white/10 bg-slate-900/70 p-5">
+    <div class="font-medium text-white">Minha estratégia</div>
+    <p class="mt-1 text-xs text-slate-500">Descreva seu setup, regras de entrada/saída, stop, risco:retorno, horários. A IA usa isto como base.</p>
+    <form method="post" action="{{ url_for('journal.coach_strategy') }}" class="mt-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <textarea name="strategy" rows="12" placeholder="Ex.: Opero rompimento de máxima/mínima do dia em WINFUT, das 9h30 às 12h. Stop de 150 pts, alvo 1:2..."
+                class="w-full rounded-lg border border-white/10 bg-slate-950 p-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none">{{ strategy }}</textarea>
+      <button class="mt-3 w-full rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">Salvar estratégia</button>
+    </form>
+  </div>
+
+  <div class="lg:col-span-2 space-y-6">
+    {% if not ai_enabled %}
+    <div class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-200">
+      A IA está desligada. Defina a variável <code>ANTHROPIC_API_KEY</code> no servidor (Render → Environment) para habilitar checklist, chat e resumo.
+    </div>
+    {% else %}
+    <!-- Checklist pré-trade -->
+    <div class="rounded-xl border border-white/10 bg-slate-900/70 p-5">
+      <div class="font-medium text-white">Checklist pré-trade</div>
+      <p class="mt-1 text-xs text-slate-500">Descreva a operação que pretende fazer; a IA valida contra a sua estratégia.</p>
+      <textarea id="plan" rows="3" placeholder="Ex.: Comprar WINFUT a 130.000, stop 129.850, alvo 130.300, 2 contratos, 10h."
+                class="mt-3 w-full rounded-lg border border-white/10 bg-slate-950 p-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none"></textarea>
+      <button id="btn-check" class="mt-3 rounded-lg border border-emerald-400/40 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-400/10">Validar plano</button>
+      <div id="check-out" class="mt-3 hidden text-sm"></div>
+    </div>
+
+    <!-- Chat com o diário -->
+    <div class="rounded-xl border border-white/10 bg-slate-900/70 p-5">
+      <div class="font-medium text-white">Chat com o diário</div>
+      <p class="mt-1 text-xs text-slate-500">Pergunte sobre suas anotações: "onde mais erro?", "respeito meu stop?".</p>
+      <div class="mt-3 flex gap-2">
+        <input id="q" placeholder="Sua pergunta…" class="min-w-0 flex-1 rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none">
+        <button id="btn-chat" class="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">Perguntar</button>
+      </div>
+      <div id="chat-out" class="mt-3 hidden whitespace-pre-wrap rounded-lg bg-white/[0.03] p-3 text-sm text-slate-300"></div>
+    </div>
+
+    <!-- Resumo -->
+    <div class="rounded-xl border border-white/10 bg-slate-900/70 p-5">
+      <div class="flex items-center justify-between">
+        <div><div class="font-medium text-white">Resumo dos últimos 14 dias</div>
+        <p class="mt-1 text-xs text-slate-500">Acertos, erros recorrentes e focos para a próxima semana.</p></div>
+        <button id="btn-sum" class="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/[0.04]">Gerar</button>
+      </div>
+      <div id="sum-out" class="mt-3 hidden whitespace-pre-wrap rounded-lg bg-white/[0.03] p-3 text-sm text-slate-300"></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if ai_enabled %}
+<script>
+  const CSRF = {{ csrf_token()|tojson }};
+  const $ = id => document.getElementById(id);
+  const esc = s => { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
+  async function post(url, body) {
+    const r = await fetch(url, { method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify(body || {}) });
+    return r.json();
+  }
+  function busy(btn, on, label) { btn.disabled = on; if (on) { btn.dataset.t = btn.textContent; btn.textContent = label; } else { btn.textContent = btn.dataset.t; } }
+
+  // Checklist
+  $('btn-check').addEventListener('click', async () => {
+    const out = $('check-out'); out.classList.remove('hidden'); out.innerHTML = 'Validando…';
+    busy($('btn-check'), true, 'Validando…');
+    const d = await post("{{ url_for('journal.coach_checklist') }}", { plan: $('plan').value });
+    busy($('btn-check'), false);
+    if (!d.ok) { out.innerHTML = `<span class="text-red-300">${esc(d.error)}</span>`; return; }
+    const a = d.analysis;
+    out.innerHTML = (a.itens || []).map(i =>
+      `<div class="flex gap-2 py-1"><span>${i.atende ? '✅' : '⚠️'}</span><span><strong>${esc(i.criterio)}:</strong> ${esc(i.comentario)}</span></div>`
+    ).join('') + `<div class="mt-2 rounded-lg bg-emerald-400/10 px-3 py-2 text-emerald-300">${esc(a.veredito)}</div>`;
+  });
+
+  // Chat
+  $('btn-chat').addEventListener('click', async () => {
+    const out = $('chat-out'); out.classList.remove('hidden'); out.textContent = 'Pensando…';
+    busy($('btn-chat'), true, '…');
+    const d = await post("{{ url_for('journal.coach_chat') }}", { question: $('q').value });
+    busy($('btn-chat'), false);
+    out.textContent = d.ok ? d.text : (d.error || 'Erro.');
+  });
+  $('q').addEventListener('keydown', e => { if (e.key === 'Enter') $('btn-chat').click(); });
+
+  // Resumo
+  $('btn-sum').addEventListener('click', async () => {
+    const out = $('sum-out'); out.classList.remove('hidden'); out.textContent = 'Gerando…';
+    busy($('btn-sum'), true, 'Gerando…');
+    const d = await post("{{ url_for('journal.coach_summary') }}", {});
+    busy($('btn-sum'), false);
+    out.textContent = d.ok ? d.text : (d.error || 'Erro.');
+  });
+</script>
+{% endif %}
+{% endblock %}

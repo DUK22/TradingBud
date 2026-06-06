@@ -36,7 +36,7 @@ def test_analisar_mockado(client, user, monkeypatch):
         "resumo": "Operou no rompimento.", "pontos_fortes": ["seguiu o plano"],
         "alertas": ["sem stop definido"], "dica": "defina o stop antes de entrar"}}
     monkeypatch.setattr(ai_insights, "analyze_note",
-                        lambda title, tags, asset, body: fake)
+                        lambda title, tags, asset, body, strategy=None: fake)
     _login(client)
     n = Note(user_id=user.id, title="PETR4", body="<p>tese</p>")
     db.session.add(n)
