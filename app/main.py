@@ -351,6 +351,68 @@ def darf_pdf_download(year, month):
 
 
 # --------------------------------------------------------------------------- #
+# PWA (instalável no celular) — manifest, service worker e página offline
+# --------------------------------------------------------------------------- #
+@main_bp.route("/manifest.webmanifest")
+def manifest():
+    data = {
+        "name": "IR Traders — TradingBud",
+        "short_name": "TradingBud",
+        "description": "Apuração de IR e diário de trades para renda variável.",
+        "start_url": "/", "scope": "/", "display": "standalone",
+        "background_color": "#0b0f14", "theme_color": "#0b0f14", "lang": "pt-BR",
+        "icons": [
+            {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+            {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ],
+    }
+    return Response(json.dumps(data), mimetype="application/manifest+json")
+
+
+_SERVICE_WORKER = """
+const CACHE = 'tradingbud-v1';
+const ASSETS = ['/static/app.css', '/static/icons/icon-192.png', '/offline'];
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+});
+self.addEventListener('activate', (e) => {
+  e.waitUntil(caches.keys().then((ks) =>
+    Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+  ).then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.origin !== location.origin) return;
+  if (url.pathname.startsWith('/static/')) {
+    e.respondWith(caches.match(req).then((r) => r || fetch(req).then((resp) => {
+      const cp = resp.clone(); caches.open(CACHE).then((c) => c.put(req, cp)); return resp;
+    })));
+    return;
+  }
+  if (req.mode === 'navigate') {
+    e.respondWith(fetch(req).catch(() => caches.match('/offline')));
+  }
+});
+"""
+
+
+@main_bp.route("/sw.js")
+def service_worker():
+    resp = Response(_SERVICE_WORKER, mimetype="application/javascript")
+    resp.headers["Service-Worker-Allowed"] = "/"
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
+@main_bp.route("/offline")
+def offline():
+    return render_template("offline.html")
+
+
+# --------------------------------------------------------------------------- #
 # Posições em aberto
 # --------------------------------------------------------------------------- #
 @main_bp.route("/posicoes")

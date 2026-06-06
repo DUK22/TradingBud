@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}IR Traders{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <link rel="manifest" href="{{ url_for('main.manifest') }}">
+  <meta name="theme-color" content="#0b0f14">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
   {% block head %}{% endblock %}
 </head>
 <body class="min-h-screen bg-[#0b0f14] text-slate-200">
@@ -222,6 +225,11 @@
       if (event.key === 'Escape' && !shell.classList.contains('hidden')) close();
     });
   })();
+
+  // PWA: registra o service worker (instalável + offline básico)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+  }
 </script>
 {% block scripts %}{% endblock %}
 </body>
