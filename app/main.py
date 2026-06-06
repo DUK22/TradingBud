@@ -21,7 +21,7 @@ from flask_login import current_user, login_required, logout_user
 from werkzeug.utils import secure_filename
 
 from .extensions import db
-from .models import B3Connection, BrokerageNote, Trade, User
+from .models import B3Connection, BrokerageNote, Note, Trade, User
 from .services import b3_import, contracts, darf_pdf, ocr, tax_engine
 from .services.b3_client import B3Config, sync_status
 
@@ -158,10 +158,12 @@ def market():
     point_values = {k: float(v) for k, v in contracts.POINT_VALUES.items()}
     asset_atual = symbol.split(":")[-1]
     pos_atual = next((p for p in result.positions if p.asset == asset_atual), None)
+    notas_ativo = (Note.query.filter_by(user_id=current_user.id, asset=asset_atual)
+                   .order_by(Note.updated_at.desc()).limit(5).all())
     return render_template(
         "market.html", symbol=symbol, carteira=carteira, favoritos=favoritos,
-        point_values=point_values, pos_atual=pos_atual,
-        saved_layout=current_user.layout_mercado or "null")
+        point_values=point_values, pos_atual=pos_atual, asset_atual=asset_atual,
+        notas_ativo=notas_ativo, saved_layout=current_user.layout_mercado or "null")
 
 
 @main_bp.route("/mercado/layout", methods=["POST"])

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Diário · IR Traders{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-white">Diário de trades</h1>
+    <p class="mt-1 text-sm text-slate-500">Suas análises, planos e revisões — com tags e vínculo a ativos.</p>
+  </div>
+  <a href="{{ url_for('journal.new_note', asset=asset or None) }}"
+     class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">
+    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+    Nova anotação
+  </a>
+</div>
+
+<form method="get" class="mb-5 flex flex-wrap gap-2">
+  <input name="q" value="{{ q }}" placeholder="Buscar no diário…"
+         class="min-w-0 flex-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none">
+  <input name="asset" value="{{ asset }}" placeholder="Ativo (PETR4)"
+         class="w-32 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm uppercase text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none">
+  <button class="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/[0.04]">Filtrar</button>
+  {% if q or tag or asset %}<a href="{{ url_for('journal.list_notes') }}" class="rounded-lg px-3 py-2 text-sm text-slate-500 hover:text-slate-300">limpar</a>{% endif %}
+</form>
+
+{% if not pagination.items %}
+<div class="rounded-lg border border-dashed border-white/10 bg-slate-900/50 p-8 text-center text-sm text-slate-500">
+  {% if q or tag or asset %}Nenhuma anotação encontrada para o filtro.{% else %}Seu diário está vazio. Crie a primeira anotação!{% endif %}
+</div>
+{% else %}
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  {% for n in pagination.items %}
+  <a href="{{ url_for('journal.edit_note', note_id=n.id) }}"
+     class="flex flex-col rounded-xl border border-white/10 bg-slate-900/70 p-4 transition hover:border-emerald-400/30 hover:bg-white/[0.03]">
+    <div class="flex items-start justify-between gap-2">
+      <div class="font-medium text-white">{{ n.title or 'Sem título' }}</div>
+      {% if n.asset %}<span class="shrink-0 rounded-full bg-emerald-400/10 px-2 py-0.5 text-xs text-emerald-300">{{ n.asset }}</span>{% endif %}
+    </div>
+    <p class="mt-2 flex-1 text-sm text-slate-400">{{ preview(n.body) or 'Sem conteúdo.' }}</p>
+    <div class="mt-3 flex flex-wrap items-center gap-1.5">
+      {% for t in n.tag_list %}<span class="rounded-full bg-white/[0.05] px-2 py-0.5 text-xs text-slate-400">#{{ t }}</span>{% endfor %}
+    </div>
+    <div class="mt-3 text-xs text-slate-600">{{ n.updated_at.strftime('%d/%m/%Y %H:%M') }}</div>
+  </a>
+  {% endfor %}
+</div>
+<div class="mt-5">{% include "_pagination.html" %}</div>
+{% endif %}
+{% endblock %}

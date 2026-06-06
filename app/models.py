@@ -46,6 +46,9 @@ class User(UserMixin, db.Model):
     b3 = db.relationship(
         "B3Connection", backref="user", uselist=False, cascade="all, delete-orphan"
     )
+    journal = db.relationship(
+        "Note", backref="user", lazy=True, cascade="all, delete-orphan"
+    )
 
     def set_password(self, raw: str):
         self.password_hash = generate_password_hash(raw)
@@ -141,3 +144,22 @@ class B3Connection(db.Model):
     token_expires_at = db.Column(db.DateTime)
     last_sync_at = db.Column(db.DateTime)
     last_message = db.Column(db.String(255))
+
+
+class Note(db.Model):
+    """Entrada do diário de trades (texto rico já sanitizado)."""
+
+    __tablename__ = "notes_journal"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    title = db.Column(db.String(200), default="")
+    body = db.Column(db.Text, default="")            # HTML sanitizado (Quill)
+    tags = db.Column(db.String(255), default="")     # separadas por vírgula
+    asset = db.Column(db.String(20), index=True)     # ticker vinculado (opcional)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+
+    @property
+    def tag_list(self):
+        return [t.strip() for t in (self.tags or "").split(",") if t.strip()]

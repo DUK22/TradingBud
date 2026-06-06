@@ -17,6 +17,7 @@
   ('main.positions','Posições','Carteira','M5 13l4 4L19 7'),
   ('main.notes','Notas','Corretagem','M7 8h10M7 12h6m-6 4h10'),
   ('main.trades','Negócios','Operações','M3 17l6-6 4 4 7-7'),
+  ('journal.list_notes','Diário','Anotações','M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.1 2.1 0 013 3L12 15l-4 1 1-4z'),
   ('main.upload','Importar','PDF/OCR','M12 4v12m0-12l-4 4m4-4l4 4'),
   ('main.b3_integration','B3','Integração','M13 10V3L4 14h7v7l9-11h-7'),
 ] %}
@@ -29,6 +30,7 @@
 ] %}
 {% set note_endpoints = ['main.notes', 'main.note_detail'] %}
 {% set trade_endpoints = ['main.trades', 'main.note_manual'] %}
+{% set journal_endpoints = ['journal.list_notes', 'journal.edit_note', 'journal.new_note'] %}
 
 <div class="flex min-h-screen">
   <aside class="hidden lg:flex lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:flex-col border-r border-white/10 bg-slate-950/85 px-4 py-5">
@@ -51,7 +53,8 @@
       {% for endpoint,label,desc,icon in nav %}
         {% set is_active = request.endpoint == endpoint
           or (endpoint == 'main.notes' and request.endpoint in note_endpoints)
-          or (endpoint == 'main.trades' and request.endpoint in trade_endpoints) %}
+          or (endpoint == 'main.trades' and request.endpoint in trade_endpoints)
+          or (endpoint == 'journal.list_notes' and request.endpoint in journal_endpoints) %}
         <a href="{{ url_for(endpoint) }}"
            class="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition
                   {{ 'bg-emerald-400/12 text-emerald-300 ring-1 ring-emerald-400/20' if is_active else 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-100' }}">

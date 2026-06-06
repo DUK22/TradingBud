@@ -126,10 +126,12 @@ def create_app(config_class=Config):
 
     # Blueprints
     from .auth import auth_bp
+    from .journal import journal_bp
     from .main import main_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
+    app.register_blueprint(journal_bp)
 
     # Filtros Jinja (formatação pt-BR)
     register_filters(app)
