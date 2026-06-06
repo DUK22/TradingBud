@@ -160,7 +160,33 @@ def market():
     pos_atual = next((p for p in result.positions if p.asset == asset_atual), None)
     return render_template(
         "market.html", symbol=symbol, carteira=carteira, favoritos=favoritos,
-        point_values=point_values, pos_atual=pos_atual)
+        point_values=point_values, pos_atual=pos_atual,
+        saved_layout=current_user.layout_mercado or "null")
+
+
+@main_bp.route("/mercado/layout", methods=["POST"])
+@login_required
+def market_layout():
+    """Salva (na conta) o layout da página Mercado — sincroniza entre dispositivos."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, list) or len(data) > 40:
+        return jsonify({"ok": False, "error": "formato inválido"}), 400
+    clean = []
+    for it in data:
+        if not isinstance(it, dict):
+            continue
+        try:
+            clean.append({
+                "id": str(it.get("id", ""))[:40],
+                "type": str(it.get("type", ""))[:40],
+                "x": int(it.get("x", 0)), "y": int(it.get("y", 0)),
+                "w": int(it.get("w", 1)), "h": int(it.get("h", 1)),
+            })
+        except (TypeError, ValueError):
+            continue
+    current_user.layout_mercado = json.dumps(clean)
+    db.session.commit()
+    return jsonify({"ok": True})
 
 
 # --------------------------------------------------------------------------- #

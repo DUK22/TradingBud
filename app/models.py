@@ -34,6 +34,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     cpf = db.Column(EncryptedString())  # criptografado em repouso (LGPD)
+    layout_mercado = db.Column(db.Text)  # JSON do layout da página Mercado
     created_at = db.Column(db.DateTime, default=utcnow)
 
     notes = db.relationship(

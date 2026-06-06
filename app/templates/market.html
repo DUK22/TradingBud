@@ -8,29 +8,19 @@
   .grid-stack-item-content { inset: 0; }
   .widget-card { display:flex; flex-direction:column; height:100%; overflow:hidden;
     border-radius:12px; border:1px solid rgba(255,255,255,.1); background:rgba(15,23,42,.7); }
-  .widget-head { display:flex; align-items:center; gap:.4rem; padding:.45rem .75rem;
-    font-size:.8rem; font-weight:500; color:#cbd5e1; border-bottom:1px solid rgba(255,255,255,.06); }
+  .widget-head { display:flex; align-items:center; justify-content:space-between; gap:.4rem;
+    padding:.4rem .7rem; font-size:.8rem; font-weight:500; color:#cbd5e1; border-bottom:1px solid rgba(255,255,255,.06); }
   .widget-body { flex:1 1 auto; min-height:0; }
-  .drag-handle { display:flex; align-items:center; gap:.45rem; color:#94a3b8; }
+  .drag-handle { display:flex; align-items:center; gap:.45rem; color:#94a3b8; min-width:0; }
+  .drag-handle span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .grid-stack.editing .drag-handle { cursor:move; color:#34d399; }
   .grid-stack.editing .widget-card { outline:1px dashed rgba(52,211,153,.55); }
+  .rm-btn { display:none; }
+  .grid-stack.editing .rm-btn { display:inline-flex; }
 </style>
 {% endblock %}
 
 {% block content %}
-{% macro tvitem(id, title, name, config, x, y, w, h) -%}
-<div class="grid-stack-item" gs-id="{{ id }}" gs-x="{{ x }}" gs-y="{{ y }}" gs-w="{{ w }}" gs-h="{{ h }}">
-  <div class="grid-stack-item-content">
-    <div class="widget-card">
-      <div class="widget-head"><span class="drag-handle">
-        <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="8" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg>
-        {{ title }}</span></div>
-      <div class="widget-body" data-widget="{{ name }}" data-config="{{ config }}"></div>
-    </div>
-  </div>
-</div>
-{%- endmacro %}
-
 <!-- Fita de cotações -->
 <div class="mb-4 overflow-hidden rounded-xl border border-white/10 bg-slate-900/70">
   <div class="tradingview-widget-container" style="height:46px">
@@ -41,18 +31,22 @@
   </div>
 </div>
 
-<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+<div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
   <div>
     <h1 class="text-2xl font-semibold tracking-tight text-white">Mercado</h1>
-    <p class="mt-1 text-sm text-slate-500">Arraste e redimensione os blocos no modo de edição — o layout fica salvo.</p>
+    <p class="mt-1 text-sm text-slate-500">Edite o layout (arraste, redimensione, adicione/remova) — salvo na sua conta.</p>
   </div>
-  <div class="flex items-center gap-2">
+  <div class="flex flex-wrap items-center gap-2">
     <span id="saved-tag" class="hidden text-xs text-emerald-300">salvo ✓</span>
-    <button id="btn-reset" class="hidden rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.04]">Restaurar padrão</button>
+    <div class="relative hidden lg:block">
+      <button id="btn-add" class="hidden rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.04]">+ Bloco</button>
+      <div id="add-menu" class="absolute right-0 z-40 mt-1 hidden w-56 rounded-lg border border-white/10 bg-slate-900 p-1 shadow-xl"></div>
+    </div>
+    <button id="btn-reset" class="hidden rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.04]">Restaurar</button>
     <button id="btn-edit" class="hidden rounded-lg border border-emerald-400/40 px-3 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-400/10 lg:inline-flex">✎ Editar layout</button>
     <form method="get" class="flex gap-2">
       <input name="symbol" value="{{ symbol }}" placeholder="PETR4…"
-             class="w-36 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm uppercase text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none sm:w-48">
+             class="w-32 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm uppercase text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none sm:w-44">
       <button class="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">Abrir</button>
     </form>
   </div>
@@ -81,77 +75,41 @@
 </div>
 {% endif %}
 
-<!-- Grade editável -->
-<div class="grid-stack">
-  {{ tvitem('chart', 'Gráfico', 'advanced-chart',
-     '{"autosize":true,"symbol":"' ~ symbol ~ '","interval":"D","timezone":"America/Sao_Paulo","theme":"dark","style":"1","locale":"br","hide_side_toolbar":false,"allow_symbol_change":true,"withdateranges":true,"details":true,"studies":["Volume@tv-basicstudies"]}',
-     0, 0, 8, 8) }}
+<div class="grid-stack"></div>
 
-  {{ tvitem('tech', 'Análise técnica', 'technical-analysis',
-     '{"interval":"1D","width":"100%","isTransparent":true,"height":"100%","symbol":"' ~ symbol ~ '","showIntervalTabs":true,"locale":"br","colorTheme":"dark"}',
-     8, 0, 4, 5) }}
-
-  {{ tvitem('info', 'Informações', 'symbol-info',
-     '{"symbol":"' ~ symbol ~ '","width":"100%","locale":"br","colorTheme":"dark","isTransparent":true}',
-     8, 5, 4, 3) }}
-
-  <!-- Calculadoras (conteúdo próprio) -->
-  <div class="grid-stack-item" gs-id="calc" gs-x="0" gs-y="8" gs-w="12" gs-h="5">
-    <div class="grid-stack-item-content">
-      <div class="widget-card">
-        <div class="widget-head"><span class="drag-handle">
-          <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="8" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg>
-          Calculadoras do trader</span></div>
-        <div class="widget-body grid gap-4 overflow-auto p-4 lg:grid-cols-3">
-          <div class="rounded-lg border border-white/10 bg-white/[0.02] p-3">
-            <div class="text-sm font-medium text-slate-200">Quantos contratos</div>
-            <div class="mt-2 space-y-2 text-sm">
-              <select id="ps-contract" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"></select>
-              <input id="ps-risk" type="number" value="200" placeholder="Risco (R$)" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
-              <input id="ps-stop" type="number" value="150" placeholder="Stop (pontos)" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
-            </div>
-            <div id="ps-out" class="mt-2 rounded-lg bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-300"></div>
-          </div>
-          <div class="rounded-lg border border-white/10 bg-white/[0.02] p-3">
-            <div class="text-sm font-medium text-slate-200">Pontos → reais</div>
-            <div class="mt-2 space-y-2 text-sm">
-              <select id="pt-contract" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"></select>
-              <input id="pt-points" type="number" value="100" placeholder="Pontos" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
-              <input id="pt-qty" type="number" value="1" placeholder="Contratos" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
-            </div>
-            <div id="pt-out" class="mt-2 rounded-lg bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-300"></div>
-          </div>
-          <div class="rounded-lg border border-white/10 bg-white/[0.02] p-3">
-            <div class="text-sm font-medium text-slate-200">IR na venda</div>
-            <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
-              <input id="ir-avg" type="number" value="{{ pos_atual.avg_price if pos_atual else '' }}" placeholder="Preço médio" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
-              <input id="ir-sell" type="number" placeholder="Preço venda" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
-              <input id="ir-qty" type="number" value="{{ pos_atual.qty if pos_atual else 100 }}" placeholder="Quantidade" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
-              <select id="ir-type" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"><option value="0.15">Swing 15%</option><option value="0.20">Day 20%</option></select>
-            </div>
-            <div id="ir-out" class="mt-2 rounded-lg bg-amber-400/10 px-3 py-2 text-sm font-semibold text-amber-300"></div>
-          </div>
-        </div>
+<!-- Modelo das calculadoras (clonado para dentro do bloco "calc") -->
+<template id="tpl-calc">
+  <div class="grid gap-4 overflow-auto p-4 lg:grid-cols-3">
+    <div class="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+      <div class="text-sm font-medium text-slate-200">Quantos contratos</div>
+      <div class="mt-2 space-y-2 text-sm">
+        <select id="ps-contract" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"></select>
+        <input id="ps-risk" type="number" value="200" placeholder="Risco (R$)" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
+        <input id="ps-stop" type="number" value="150" placeholder="Stop (pontos)" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
       </div>
+      <div id="ps-out" class="mt-2 rounded-lg bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-300"></div>
+    </div>
+    <div class="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+      <div class="text-sm font-medium text-slate-200">Pontos → reais</div>
+      <div class="mt-2 space-y-2 text-sm">
+        <select id="pt-contract" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"></select>
+        <input id="pt-points" type="number" value="100" placeholder="Pontos" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
+        <input id="pt-qty" type="number" value="1" placeholder="Contratos" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
+      </div>
+      <div id="pt-out" class="mt-2 rounded-lg bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-300"></div>
+    </div>
+    <div class="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+      <div class="text-sm font-medium text-slate-200">IR na venda</div>
+      <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
+        <input id="ir-avg" type="number" value="{{ pos_atual.avg_price if pos_atual else '' }}" placeholder="Preço médio" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
+        <input id="ir-sell" type="number" placeholder="Preço venda" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
+        <input id="ir-qty" type="number" value="{{ pos_atual.qty if pos_atual else 100 }}" placeholder="Quantidade" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
+        <select id="ir-type" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"><option value="0.15">Swing 15%</option><option value="0.20">Day 20%</option></select>
+      </div>
+      <div id="ir-out" class="mt-2 rounded-lg bg-amber-400/10 px-3 py-2 text-sm font-semibold text-amber-300"></div>
     </div>
   </div>
-
-  {{ tvitem('calendar', 'Calendário econômico', 'events',
-     '{"colorTheme":"dark","isTransparent":true,"width":"100%","height":"100%","locale":"br","importanceFilter":"0,1","countryFilter":"br,us"}',
-     0, 13, 6, 6) }}
-
-  {{ tvitem('news', 'Notícias', 'timeline',
-     '{"feedMode":"symbol","symbol":"' ~ symbol ~ '","isTransparent":true,"displayMode":"regular","width":"100%","height":"100%","colorTheme":"dark","locale":"br"}',
-     6, 13, 6, 6) }}
-
-  {{ tvitem('overview', 'Panorama', 'market-overview',
-     '{"colorTheme":"dark","dateRange":"1D","showChart":true,"locale":"br","isTransparent":true,"showSymbolLogo":true,"width":"100%","height":"100%","tabs":[{"title":"Índices","symbols":[{"s":"BMFBOVESPA:IBOV","d":"Ibovespa"},{"s":"FX_IDC:USDBRL","d":"Dólar"},{"s":"TVC:DXY","d":"DXY"}]},{"title":"Ações","symbols":[{"s":"BMFBOVESPA:PETR4"},{"s":"BMFBOVESPA:VALE3"},{"s":"BMFBOVESPA:ITUB4"},{"s":"BMFBOVESPA:BBAS3"},{"s":"BMFBOVESPA:B3SA3"}]}]}',
-     0, 19, 6, 7) }}
-
-  {{ tvitem('hotlists', 'Maiores altas e baixas', 'hotlists',
-     '{"colorTheme":"dark","dateRange":"1D","exchange":"BMFBOVESPA","showChart":false,"locale":"br","isTransparent":true,"width":"100%","height":"100%"}',
-     6, 19, 6, 7) }}
-</div>
+</template>
 
 <p class="mt-4 text-xs leading-relaxed text-slate-600">
   Cotações e dados pelo TradingView (alguns em tempo real, outros com atraso conforme a bolsa).
@@ -162,11 +120,42 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack-all.js"></script>
 <script>
-  const KEY = 'mercado-layout-v2';
+  const SYMBOL = {{ symbol|tojson }};
+  const CSRF = {{ csrf_token()|tojson }};
+  const SAVED = {{ saved_layout|safe }};
   const $ = id => document.getElementById(id);
+  const brl = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
 
-  function renderWidget(body) {
-    const name = body.dataset.widget; if (!name) return;
+  // Catálogo de blocos disponíveis
+  const CATALOG = {
+    chart:   {title:'Gráfico', w:8, h:8, tv:'advanced-chart', cfg:s=>({autosize:true,symbol:s,interval:'D',timezone:'America/Sao_Paulo',theme:'dark',style:'1',locale:'br',hide_side_toolbar:false,allow_symbol_change:true,withdateranges:true,details:true,studies:['Volume@tv-basicstudies']})},
+    mini:    {title:'Mini gráfico', w:4, h:4, tv:'mini-symbol-overview', cfg:s=>({symbol:s,width:'100%',height:'100%',locale:'br',dateRange:'12M',colorTheme:'dark',isTransparent:true,autosize:true})},
+    tech:    {title:'Análise técnica', w:4, h:5, tv:'technical-analysis', cfg:s=>({interval:'1D',width:'100%',height:'100%',isTransparent:true,symbol:s,showIntervalTabs:true,locale:'br',colorTheme:'dark'})},
+    info:    {title:'Informações', w:4, h:3, tv:'symbol-info', cfg:s=>({symbol:s,width:'100%',locale:'br',colorTheme:'dark',isTransparent:true})},
+    quote:   {title:'Cotação', w:4, h:3, tv:'single-quote', cfg:s=>({symbol:s,width:'100%',colorTheme:'dark',isTransparent:true,locale:'br'})},
+    calc:    {title:'Calculadoras do trader', w:12, h:5, custom:true},
+    calendar:{title:'Calendário econômico', w:6, h:6, tv:'events', cfg:()=>({colorTheme:'dark',isTransparent:true,width:'100%',height:'100%',locale:'br',importanceFilter:'0,1',countryFilter:'br,us'})},
+    news:    {title:'Notícias', w:6, h:6, tv:'timeline', cfg:s=>({feedMode:'symbol',symbol:s,isTransparent:true,displayMode:'regular',width:'100%',height:'100%',colorTheme:'dark',locale:'br'})},
+    overview:{title:'Panorama', w:6, h:7, tv:'market-overview', cfg:()=>({colorTheme:'dark',dateRange:'1D',showChart:true,locale:'br',isTransparent:true,showSymbolLogo:true,width:'100%',height:'100%',tabs:[{title:'Índices',symbols:[{s:'BMFBOVESPA:IBOV',d:'Ibovespa'},{s:'FX_IDC:USDBRL',d:'Dólar'},{s:'TVC:DXY',d:'DXY'}]},{title:'Ações',symbols:[{s:'BMFBOVESPA:PETR4'},{s:'BMFBOVESPA:VALE3'},{s:'BMFBOVESPA:ITUB4'},{s:'BMFBOVESPA:BBAS3'},{s:'BMFBOVESPA:B3SA3'}]}]})},
+    hotlists:{title:'Maiores altas e baixas', w:6, h:7, tv:'hotlists', cfg:()=>({colorTheme:'dark',dateRange:'1D',exchange:'BMFBOVESPA',showChart:false,locale:'br',isTransparent:true,width:'100%',height:'100%'})},
+    screener:{title:'Rastreador de ações', w:12, h:8, tv:'screener', cfg:()=>({width:'100%',height:'100%',defaultColumn:'overview',defaultScreen:'most_capitalized',market:'brazil',showToolbar:true,colorTheme:'dark',locale:'br',isTransparent:true})},
+    forex:   {title:'Moedas (forex)', w:6, h:6, tv:'forex-cross-rates', cfg:()=>({width:'100%',height:'100%',currencies:['EUR','USD','BRL','JPY','GBP'],isTransparent:true,colorTheme:'dark',locale:'br'})},
+    crypto:  {title:'Cripto', w:6, h:7, tv:'crypto-mkt-screener', cfg:()=>({width:'100%',height:'100%',defaultColumn:'overview',screener_type:'crypto_mkt',displayCurrency:'USD',colorTheme:'dark',locale:'br',isTransparent:true})},
+  };
+  const DEFAULT_LAYOUT = [
+    {id:'chart',type:'chart',x:0,y:0,w:8,h:8},
+    {id:'tech',type:'tech',x:8,y:0,w:4,h:5},
+    {id:'info',type:'info',x:8,y:5,w:4,h:3},
+    {id:'calc',type:'calc',x:0,y:8,w:12,h:5},
+    {id:'calendar',type:'calendar',x:0,y:13,w:6,h:6},
+    {id:'news',type:'news',x:6,y:13,w:6,h:6},
+    {id:'overview',type:'overview',x:0,y:19,w:6,h:7},
+    {id:'hotlists',type:'hotlists',x:6,y:19,w:6,h:7},
+  ];
+  const GRIP = '<svg class="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><circle cx="8" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg>';
+  const XICON = '<svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
+
+  function renderTV(body, name, configObj) {
     body.innerHTML = '';
     const c = document.createElement('div');
     c.className = 'tradingview-widget-container'; c.style.height = '100%'; c.style.width = '100%';
@@ -174,8 +163,17 @@
     w.className = 'tradingview-widget-container__widget'; w.style.height = '100%'; w.style.width = '100%';
     const s = document.createElement('script'); s.async = true;
     s.src = `https://s3.tradingview.com/external-embedding/embed-widget-${name}.js`;
-    s.text = body.dataset.config || '{}';
+    s.text = JSON.stringify(configObj);
     c.appendChild(w); c.appendChild(s); body.appendChild(c);
+  }
+  function renderBody(el, type) {
+    const def = CATALOG[type]; if (!def) return;
+    const body = el.querySelector('.widget-body');
+    if (def.custom && type === 'calc') {
+      body.innerHTML = ''; body.appendChild($('tpl-calc').content.cloneNode(true)); initCalc();
+    } else if (def.tv) {
+      renderTV(body, def.tv, def.cfg(SYMBOL));
+    }
   }
 
   const grid = GridStack.init({
@@ -184,45 +182,94 @@
     columnOpts: { breakpointForWindow: true, breakpoints: [{ w: 700, c: 1 }] },
   });
 
-  // Carrega layout salvo (por dispositivo).
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (saved) saved.forEach(n => {
-      const el = document.querySelector(`.grid-stack-item[gs-id="${n.id}"]`);
-      if (el) grid.update(el, { x: n.x, y: n.y, w: n.w, h: n.h });
+  function addItem(node) {
+    const def = CATALOG[node.type]; if (!def) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'grid-stack-item';
+    wrap.setAttribute('gs-id', node.id);
+    ['x','y','w','h'].forEach(k => wrap.setAttribute('gs-'+k, node[k]));
+    wrap.innerHTML = `<div class="grid-stack-item-content"><div class="widget-card" data-type="${node.type}">
+      <div class="widget-head"><span class="drag-handle">${GRIP}<span>${def.title}</span></span>
+      <button class="rm-btn text-slate-500 hover:text-red-300" title="Remover bloco">${XICON}</button></div>
+      <div class="widget-body"></div></div></div>`;
+    grid.el.appendChild(wrap);
+    grid.makeWidget(wrap);
+    renderBody(wrap, node.type);
+    wrap.querySelector('.rm-btn').addEventListener('click', () => {
+      grid.removeWidget(wrap); saveLayout(); buildAddMenu();
     });
-  } catch (e) { /* ignora layout inválido */ }
-
-  document.querySelectorAll('.widget-body[data-widget]').forEach(renderWidget);
-  grid.on('resizestop', (e, el) => {
-    const b = el.querySelector('.widget-body[data-widget]'); if (b) renderWidget(b);
-  });
-
-  function showSaved() {
-    const t = $('saved-tag'); t.classList.remove('hidden');
-    clearTimeout(window._svt); window._svt = setTimeout(() => t.classList.add('hidden'), 1500);
   }
-  grid.on('change', () => {
-    if (!grid.opts.staticGrid && window.innerWidth >= 700) {
-      localStorage.setItem(KEY, JSON.stringify(grid.save(false))); showSaved();
-    }
-  });
 
+  function currentLayout() {
+    return grid.getGridItems().map(el => {
+      const n = el.gridstackNode || {};
+      const card = el.querySelector('.widget-card');
+      return { id: n.id, type: card ? card.dataset.type : '', x: n.x, y: n.y, w: n.w, h: n.h };
+    });
+  }
+  let saveTimer = null;
+  function saveLayout() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      fetch("{{ url_for('main.market_layout') }}", {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify(currentLayout()),
+      }).then(() => { const t = $('saved-tag'); t.classList.remove('hidden');
+        clearTimeout(window._svt); window._svt = setTimeout(() => t.classList.add('hidden'), 1500); });
+    }, 700);
+  }
+
+  // Monta o layout inicial (salvo ou padrão)
+  const layout = (Array.isArray(SAVED) && SAVED.length) ? SAVED : DEFAULT_LAYOUT;
+  grid.batchUpdate();
+  layout.forEach(addItem);
+  grid.commit();
+  grid.on('resizestop', (e, el) => {
+    const card = el.querySelector('.widget-card'); if (card) renderBody(el, card.dataset.type);
+  });
+  grid.on('change', () => { if (!grid.opts.staticGrid && window.innerWidth >= 700) saveLayout(); });
+
+  // Menu de adicionar blocos
+  function buildAddMenu() {
+    const present = new Set(grid.getGridItems().map(el => el.querySelector('.widget-card')?.dataset.type));
+    const menu = $('add-menu'); menu.innerHTML = '';
+    const avail = Object.keys(CATALOG).filter(t => !present.has(t));
+    if (!avail.length) { menu.innerHTML = '<div class="px-3 py-2 text-xs text-slate-500">Todos os blocos já estão na tela.</div>'; return; }
+    avail.forEach(t => {
+      const b = document.createElement('button');
+      b.className = 'block w-full rounded-md px-3 py-2 text-left text-sm text-slate-300 hover:bg-white/[0.06]';
+      b.textContent = CATALOG[t].title;
+      b.addEventListener('click', () => {
+        addItem({ id: t, type: t, x: 0, y: 0, w: CATALOG[t].w, h: CATALOG[t].h });
+        menu.classList.add('hidden'); saveLayout(); buildAddMenu();
+      });
+      menu.appendChild(b);
+    });
+  }
+
+  // Botões de edição
   let editing = false;
   const gridEl = document.querySelector('.grid-stack');
   $('btn-edit').addEventListener('click', () => {
-    editing = !editing;
-    grid.setStatic(!editing);
+    editing = !editing; grid.setStatic(!editing);
     gridEl.classList.toggle('editing', editing);
     $('btn-edit').textContent = editing ? '✓ Concluir' : '✎ Editar layout';
     $('btn-reset').classList.toggle('hidden', !editing);
+    $('btn-add').classList.toggle('hidden', !editing);
+    if (!editing) $('add-menu').classList.add('hidden');
   });
-  $('btn-reset').addEventListener('click', () => { localStorage.removeItem(KEY); location.reload(); });
+  $('btn-add').addEventListener('click', () => { buildAddMenu(); $('add-menu').classList.toggle('hidden'); });
+  $('btn-reset').addEventListener('click', () => {
+    grid.removeAll(); grid.batchUpdate(); DEFAULT_LAYOUT.forEach(addItem); grid.commit();
+    saveLayout(); buildAddMenu();
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#add-menu') && !e.target.closest('#btn-add')) $('add-menu').classList.add('hidden');
+  });
 
   // ---- Calculadoras ----
   const PV = {{ point_values|tojson }};
-  const brl = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
-  function fillContracts(sel){ Object.keys(PV).forEach(k=>{ const o=document.createElement('option');
+  function fillContracts(sel){ sel.innerHTML=''; Object.keys(PV).forEach(k=>{ const o=document.createElement('option');
     o.value=k; o.textContent=`${k} (R$ ${PV[k].toLocaleString('pt-BR')}/pt)`; sel.appendChild(o); }); }
   function calcPS(){ const pv=PV[$('ps-contract').value]||0, risk=parseFloat($('ps-risk').value)||0, stop=parseFloat($('ps-stop').value)||0;
     const per=stop*pv; $('ps-out').textContent = per<=0?'Informe o stop.':(Math.floor(risk/per)>0?`${Math.floor(risk/per)} contrato(s) · risco real ${brl(Math.floor(risk/per)*per)}`:`Risco insuficiente p/ 1 contrato (${brl(per)})`); }
@@ -230,11 +277,15 @@
     $('pt-out').textContent = `${brl(pts*pv*q)} (${q}× contrato)`; }
   function calcIR(){ const avg=parseFloat($('ir-avg').value)||0, sell=parseFloat($('ir-sell').value)||0, q=parseFloat($('ir-qty').value)||0, a=parseFloat($('ir-type').value)||0.15;
     const lucro=(sell-avg)*q, imp=lucro>0?lucro*a:0; $('ir-out').innerHTML=`Resultado ${brl(lucro)} · Imposto ${brl(imp)}`; }
-  fillContracts($('ps-contract')); fillContracts($('pt-contract'));
-  ['ps-contract','ps-risk','ps-stop'].forEach(id=>$(id).addEventListener('input',calcPS));
-  ['pt-contract','pt-points','pt-qty'].forEach(id=>$(id).addEventListener('input',calcPT));
-  ['ir-avg','ir-sell','ir-qty','ir-type'].forEach(id=>$(id).addEventListener('input',calcIR));
-  calcPS(); calcPT(); calcIR();
+  function initCalc(){
+    if (!$('ps-contract')) return;
+    fillContracts($('ps-contract')); fillContracts($('pt-contract'));
+    ['ps-contract','ps-risk','ps-stop'].forEach(id=>$(id).oninput=calcPS);
+    ['pt-contract','pt-points','pt-qty'].forEach(id=>$(id).oninput=calcPT);
+    ['ir-avg','ir-sell','ir-qty','ir-type'].forEach(id=>$(id).oninput=calcIR);
+    calcPS(); calcPT(); calcIR();
+    if (window._livePrice && $('ir-sell') && !$('ir-sell').value) { $('ir-sell').value = window._livePrice; calcIR(); }
+  }
 
   // ---- Cotação ao vivo da posição atual ----
   const posPanel = $('pos-panel');
@@ -244,6 +295,7 @@
       .then(r => r.json()).then(p => {
         const price = p[a], el = $('pos-live');
         if (price == null) { el.textContent = 'cotação ao vivo indisponível'; return; }
+        window._livePrice = price;
         const pnl = (price - avg) * qty, pct = avg ? ((price/avg - 1)*100).toFixed(1) : '0.0';
         el.innerHTML = `Atual <strong class="text-white">${brl(price)}</strong> · `
           + `Resultado <strong class="${pnl>=0?'text-emerald-300':'text-red-300'}">${brl(pnl)} (${pct}%)</strong>`;
