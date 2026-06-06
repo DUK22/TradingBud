@@ -11,6 +11,7 @@ from flask import (
     abort,
     current_app,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -330,6 +331,16 @@ def positions():
     result = tax_engine.compute(_user_notes())
     total = sum((p.market_cost for p in result.positions), Decimal("0"))
     return render_template("positions.html", positions=result.positions, total=total)
+
+
+@main_bp.route("/api/cotacoes")
+@login_required
+def api_quotes():
+    """Cotações ao vivo (ações B3) para os tickers informados. JSON {ticker: preço}."""
+    from .services import quotes
+    raw = request.args.get("tickers", "")
+    tickers = [t.strip().upper() for t in raw.split(",") if t.strip()][:30]
+    return jsonify(quotes.get_prices(tickers))
 
 
 # --------------------------------------------------------------------------- #

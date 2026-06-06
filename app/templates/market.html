@@ -211,5 +211,22 @@
   ['pt-contract','pt-points','pt-qty'].forEach(id => $(id).addEventListener('input', calcPT));
   ['ir-avg','ir-sell','ir-qty','ir-type'].forEach(id => $(id).addEventListener('input', calcIR));
   calcPS(); calcPT(); calcIR();
+
+  // ---- Cotação ao vivo da posição atual ----
+  const posPanel = $('pos-panel');
+  if (posPanel) {
+    const a = posPanel.dataset.asset;
+    const avg = parseFloat(posPanel.dataset.avg), qty = parseFloat(posPanel.dataset.qty);
+    fetch(`{{ url_for('main.api_quotes') }}?tickers=${encodeURIComponent(a)}`)
+      .then(r => r.json()).then(p => {
+        const price = p[a], el = $('pos-live');
+        if (price == null) { el.textContent = 'cotação ao vivo indisponível'; return; }
+        const pnl = (price - avg) * qty, pct = avg ? ((price/avg - 1)*100).toFixed(1) : '0.0';
+        const cls = pnl >= 0 ? 'text-emerald-300' : 'text-red-300';
+        el.innerHTML = `Atual <strong class="text-white">${brl(price)}</strong> · `
+          + `Resultado <strong class="${cls}">${brl(pnl)} (${pct}%)</strong>`;
+        const sell = $('ir-sell'); if (sell && !sell.value) { sell.value = price; calcIR(); }
+      }).catch(() => {});
+  }
 </script>
 {% endblock %}

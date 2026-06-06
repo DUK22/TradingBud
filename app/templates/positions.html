@@ -1,38 +1,110 @@
 {% extends "base.html" %}
 {% block title %}Posições · IR Traders{% endblock %}
 {% block content %}
-<div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-semibold">Posições em aberto</h1>
-  <div class="text-right">
-    <div class="text-xs text-slate-500 uppercase">Custo total</div>
-    <div class="text-xl font-semibold">{{ total|brl }}</div>
+<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight text-white">Posições em aberto</h1>
+    <p class="mt-1 text-sm text-slate-500">Sua carteira e a base de custo para o imposto. Cotações ao vivo (ações).</p>
+  </div>
+  <div class="grid grid-cols-3 gap-4 text-right">
+    <div><div class="text-[11px] uppercase tracking-wider text-slate-500">Custo</div>
+      <div class="mt-0.5 font-semibold tabular-nums text-white">{{ total|brl }}</div></div>
+    <div><div class="text-[11px] uppercase tracking-wider text-slate-500">Valor atual</div>
+      <div id="tot-value" class="mt-0.5 font-semibold tabular-nums text-slate-300">—</div></div>
+    <div><div class="text-[11px] uppercase tracking-wider text-slate-500">Resultado</div>
+      <div id="tot-pnl" class="mt-0.5 font-semibold tabular-nums text-slate-300">—</div></div>
   </div>
 </div>
 
 {% if not positions %}
-<p class="text-slate-500">Nenhuma posição em aberto (todas as compras já foram zeradas).</p>
+<div class="rounded-lg border border-dashed border-white/10 bg-slate-900/50 p-8 text-center text-sm text-slate-500">
+  Nenhuma posição em aberto (todas as compras já foram zeradas).
+</div>
 {% else %}
-<div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+<div class="overflow-x-auto rounded-xl border border-white/10 bg-slate-900/70 shadow-sm">
   <table class="w-full text-sm tabular-nums">
-    <thead class="bg-slate-800/50 text-slate-400 text-left">
-      <tr><th class="px-4 py-3">Ativo</th><th class="px-4 py-3">Mercado</th>
-      <th class="px-4 py-3 text-right">Quantidade</th>
-      <th class="px-4 py-3 text-right">Preço médio</th>
-      <th class="px-4 py-3 text-right">Custo total</th></tr>
+    <thead class="border-b border-white/10 bg-white/[0.03] text-left text-xs uppercase tracking-wider text-slate-500">
+      <tr>
+        <th class="px-4 py-3">Ativo</th>
+        <th class="px-4 py-3">Mercado</th>
+        <th class="px-4 py-3 text-right">Qtd</th>
+        <th class="px-4 py-3 text-right">Preço médio</th>
+        <th class="px-4 py-3 text-right">Custo</th>
+        <th class="px-4 py-3 text-right">Preço atual</th>
+        <th class="px-4 py-3 text-right">Valor atual</th>
+        <th class="px-4 py-3 text-right">Resultado</th>
+      </tr>
     </thead>
-    <tbody class="divide-y divide-slate-800">
+    <tbody class="divide-y divide-white/10">
       {% for p in positions %}
-      <tr class="hover:bg-slate-800/30">
-        <td class="px-4 py-3 font-medium">{{ p.asset }}</td>
-        <td class="px-4 py-3 text-slate-400">{{ p.market }}</td>
+      <tr class="pos-row hover:bg-white/[0.03]"
+          data-asset="{{ p.asset }}" data-market="{{ p.market }}"
+          data-avg="{{ p.avg_price }}" data-qty="{{ p.qty }}">
+        <td class="px-4 py-3 font-medium text-white">{{ p.asset }}</td>
+        <td class="px-4 py-3 text-slate-500">{{ p.market }}</td>
         <td class="px-4 py-3 text-right">{{ p.qty|num(0) }}</td>
         <td class="px-4 py-3 text-right">{{ p.avg_price|brl }}</td>
-        <td class="px-4 py-3 text-right">{{ p.market_cost|brl }}</td>
+        <td class="px-4 py-3 text-right text-slate-300">{{ p.market_cost|brl }}</td>
+        <td class="px-4 py-3 text-right cell-price text-slate-500">…</td>
+        <td class="px-4 py-3 text-right cell-value text-slate-500">…</td>
+        <td class="px-4 py-3 text-right cell-pnl text-slate-500">…</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
-<p class="text-xs text-slate-600 mt-3">Preço médio ponderado já incorpora corretagem e taxas de aquisição.</p>
+<p class="mt-3 text-xs text-slate-600">
+  Preço médio já incorpora corretagem e taxas. Cotações ao vivo (Yahoo) são informativas e podem
+  ter atraso; futuros e opções não têm cotação aqui.
+</p>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const brl = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
+  const rows = Array.from(document.querySelectorAll('.pos-row'));
+  const stockMarkets = new Set(['VISTA','FRACIONARIO']);
+  const tickers = [...new Set(rows
+    .filter(r => stockMarkets.has(r.dataset.market))
+    .map(r => r.dataset.asset))];
+
+  function paint(prices) {
+    let totValue = 0, totPnl = 0, hasAny = false;
+    rows.forEach(r => {
+      const price = prices[r.dataset.asset];
+      const cP = r.querySelector('.cell-price');
+      const cV = r.querySelector('.cell-value');
+      const cR = r.querySelector('.cell-pnl');
+      if (price == null) { cP.textContent = cV.textContent = cR.textContent = '—'; return; }
+      hasAny = true;
+      const avg = parseFloat(r.dataset.avg), qty = parseFloat(r.dataset.qty);
+      const value = price * qty, pnl = (price - avg) * qty;
+      totValue += value; totPnl += pnl;
+      const cls = pnl >= 0 ? 'text-emerald-300' : 'text-red-300';
+      cP.textContent = brl(price); cP.classList.remove('text-slate-500');
+      cV.textContent = brl(value); cV.classList.remove('text-slate-500'); cV.classList.add('text-slate-200');
+      const pct = avg ? ((price/avg - 1) * 100).toFixed(1) : '0.0';
+      cR.innerHTML = `${brl(pnl)} <span class="text-xs opacity-70">(${pct}%)</span>`;
+      cR.classList.remove('text-slate-500'); cR.classList.add(cls);
+    });
+    if (hasAny) {
+      document.getElementById('tot-value').textContent = brl(totValue);
+      const t = document.getElementById('tot-pnl');
+      t.textContent = brl(totPnl);
+      t.classList.remove('text-slate-300');
+      t.classList.add(totPnl >= 0 ? 'text-emerald-300' : 'text-red-300');
+    }
+  }
+
+  if (tickers.length) {
+    fetch(`{{ url_for('main.api_quotes') }}?tickers=${encodeURIComponent(tickers.join(','))}`)
+      .then(r => r.json()).then(paint)
+      .catch(() => rows.forEach(r => r.querySelectorAll('.cell-price,.cell-value,.cell-pnl')
+        .forEach(c => c.textContent = '—')));
+  } else {
+    rows.forEach(r => r.querySelectorAll('.cell-price,.cell-value,.cell-pnl')
+      .forEach(c => c.textContent = '—'));
+  }
+</script>
 {% endblock %}
