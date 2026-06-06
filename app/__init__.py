@@ -41,7 +41,7 @@ def _configure_logging():
 _CSP = (
     "default-src 'self'; "
     "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://s3.tradingview.com; "
-    "style-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
     "img-src 'self' data: https://*.tradingview.com; "
     "connect-src 'self' https://*.tradingview.com wss://*.tradingview.com; "
     "frame-src https://www.tradingview.com https://s.tradingview.com https://www.tradingview-widget.com; "
