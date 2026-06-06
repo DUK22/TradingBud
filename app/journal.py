@@ -97,8 +97,9 @@ def analyze_note(note_id):
     """Análise da anotação com IA (Claude). Devolve JSON estruturado."""
     note = _owned(note_id)
     body_text = bleach.clean(note.body or "", tags=[], strip=True)
+    images = ai_insights.images_from_html(note.body)
     result = ai_insights.analyze_note(note.title, note.tags, note.asset, body_text,
-                                      strategy=current_user.strategy)
+                                      strategy=current_user.strategy, images=images)
     return jsonify(result)
 
 

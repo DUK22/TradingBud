@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from flask_login import UserMixin
+from sqlalchemy.ext.mutable import MutableList
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .crypto import EncryptedString
@@ -35,7 +36,8 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     cpf = db.Column(EncryptedString())  # criptografado em repouso (LGPD)
     layout_mercado = db.Column(db.Text)  # JSON do layout da página Mercado
-    strategy = db.Column(db.Text)        # estratégia do trader (contexto p/ a IA)
+    strategy = db.Column(db.Text)        # legado: estratégia única (migrada p/ StrategyProfile)
+    active_strategy_id = db.Column(db.Integer)  # id da StrategyProfile selecionada
     created_at = db.Column(db.DateTime, default=utcnow)
 
     notes = db.relationship(
@@ -49,6 +51,10 @@ class User(UserMixin, db.Model):
     )
     journal = db.relationship(
         "Note", backref="user", lazy=True, cascade="all, delete-orphan"
+    )
+    strategies = db.relationship(
+        "StrategyProfile", backref="user", lazy=True, cascade="all, delete-orphan",
+        foreign_keys="StrategyProfile.user_id",
     )
 
     def set_password(self, raw: str):
@@ -159,10 +165,23 @@ class Note(db.Model):
     body = db.Column(db.Text, default="")            # HTML sanitizado (Quill)
     tags = db.Column(db.String(255), default="")     # separadas por vírgula
     asset = db.Column(db.String(20), index=True)     # ticker vinculado (opcional)
-    analysis_history = db.Column(db.JSON, default=list, nullable=True)  # histórico de análises da IA
+    analysis_history = db.Column(MutableList.as_mutable(db.JSON), default=list, nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     @property
     def tag_list(self):
         return [t.strip() for t in (self.tags or "").split(",") if t.strip()]
+
+
+class StrategyProfile(db.Model):
+    """Estratégia nomeada do trader (selecionável; usada como contexto da IA)."""
+
+    __tablename__ = "strategy_profiles"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False, default="Estratégia")
+    content = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)

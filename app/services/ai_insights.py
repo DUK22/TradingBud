@@ -11,12 +11,44 @@ recomendação de compra/venda — é apoio educacional ao processo.
 """
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import logging
+import re
 
 from flask import current_app
 
 log = logging.getLogger(__name__)
+
+# Imagens (data URI) embutidas no HTML do diário (Quill). Claude lê png/jpeg/gif/webp.
+_DATA_URI_RE = re.compile(
+    r"data:(image/(?:png|jpe?g|gif|webp));base64,([A-Za-z0-9+/=\s]+)", re.IGNORECASE
+)
+
+
+def images_from_html(html: str, max_images: int = 6, max_bytes: int = 4_500_000) -> list[dict]:
+    """Extrai imagens base64 do HTML como blocos de imagem da API Claude.
+
+    Ignora imagens corrompidas, minúsculas (ícones) ou grandes demais (limite da API).
+    """
+    out: list[dict] = []
+    for m in _DATA_URI_RE.finditer(html or ""):
+        media = m.group(1).lower()
+        if media == "image/jpg":
+            media = "image/jpeg"
+        data = re.sub(r"\s+", "", m.group(2))
+        try:
+            raw = base64.b64decode(data, validate=True)
+        except (binascii.Error, ValueError):
+            continue
+        if not (200 <= len(raw) <= max_bytes):
+            continue
+        out.append({"type": "image",
+                    "source": {"type": "base64", "media_type": media, "data": data}})
+        if len(out) >= max_images:
+            break
+    return out
 
 BASE_SYSTEM = (
     "Você é um mentor de trading que ajuda um trader pessoa física brasileiro "
@@ -61,7 +93,7 @@ def _handle_errors(fn):
         return {"ok": False, "error": "Falha ao processar. Tente novamente."}
 
 
-def _call_json(system: str, user: str, schema: dict, max_tokens: int = 1024) -> dict:
+def _call_json(system: str, user: str | list, schema: dict, max_tokens: int = 1024) -> dict:
     client = _client()
     if client is None:
         return {"ok": False, "error": "Recurso de IA não configurado."}
@@ -130,13 +162,21 @@ _CHECKLIST_SCHEMA = {
 }
 
 
-def analyze_note(title, tags, asset, body_text, strategy=None) -> dict:
-    if not (body_text or "").strip():
-        return {"ok": False, "error": "Escreva algo na anotação antes de analisar."}
+def analyze_note(title, tags, asset, body_text, strategy=None, images=None) -> dict:
+    images = images or []
+    if not (body_text or "").strip() and not images:
+        return {"ok": False, "error": "Escreva algo ou anexe uma imagem antes de analisar."}
     system = BASE_SYSTEM + _strategy_block(strategy)
-    user = (f"Título: {title or '(sem título)'}\nAtivo: {asset or '(não informado)'}\n"
-            f"Tags: {tags or '(nenhuma)'}\n\nAnotação:\n{body_text.strip()[:6000]}")
-    r = _call_json(system, user, _NOTE_SCHEMA)
+    text = (f"Título: {title or '(sem título)'}\nAtivo: {asset or '(não informado)'}\n"
+            f"Tags: {tags or '(nenhuma)'}\n\nAnotação:\n{(body_text or '').strip()[:6000]}")
+    if images:
+        text += ("\n\nO trader anexou imagem(ns) — provavelmente print do Profit, "
+                 "book, gráfico ou resultado. Leia o que aparece nelas (ativo, preços, "
+                 "setup, gráfico, posição, P&L) e relacione com a estratégia e a "
+                 "anotação na sua análise.")
+    content: list = [{"type": "text", "text": text}]
+    content.extend(images)
+    r = _call_json(system, content, _NOTE_SCHEMA)
     return {"ok": True, "analysis": r["data"]} if r.get("ok") else r
 
 
