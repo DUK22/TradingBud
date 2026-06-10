@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Conferência B3 · IR Traders{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <a href="{{ url_for('main.b3_integration') }}" class="text-xs text-slate-500 hover:text-slate-300">← Integração B3</a>
+  <h1 class="mt-1 text-2xl font-semibold tracking-tight text-white">Conferência: planilha B3 × suas notas</h1>
+  <p class="mt-1 text-sm text-slate-500">Período comparado: {{ d_min.strftime("%d/%m/%Y") }} a {{ d_max.strftime("%d/%m/%Y") }} · agregado por data + ativo + lado. Nada foi importado.</p>
+</div>
+
+{% set ok = not rec.only_b3 and not rec.only_app and not rec.mismatch %}
+<div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+  <div class="rounded-lg border border-emerald-400/25 bg-white/[0.03] p-4">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Conferem</div>
+    <div class="mt-1 text-2xl font-semibold tabular-nums text-emerald-300">{{ rec.matched }}</div>
+  </div>
+  <div class="rounded-lg border {{ 'border-red-400/30' if rec.only_b3 else 'border-white/10' }} bg-white/[0.03] p-4">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Só na B3 (falta nota)</div>
+    <div class="mt-1 text-2xl font-semibold tabular-nums {{ 'text-red-300' if rec.only_b3 else 'text-slate-300' }}">{{ rec.only_b3|length }}</div>
+  </div>
+  <div class="rounded-lg border {{ 'border-amber-400/30' if rec.only_app else 'border-white/10' }} bg-white/[0.03] p-4">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Só no app</div>
+    <div class="mt-1 text-2xl font-semibold tabular-nums {{ 'text-amber-300' if rec.only_app else 'text-slate-300' }}">{{ rec.only_app|length }}</div>
+  </div>
+  <div class="rounded-lg border {{ 'border-amber-400/30' if rec.mismatch else 'border-white/10' }} bg-white/[0.03] p-4">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Divergentes</div>
+    <div class="mt-1 text-2xl font-semibold tabular-nums {{ 'text-amber-300' if rec.mismatch else 'text-slate-300' }}">{{ rec.mismatch|length }}</div>
+  </div>
+</div>
+
+{% if ok %}
+<div class="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-6 text-center">
+  <div class="text-2xl">✅</div>
+  <div class="mt-2 font-semibold text-emerald-300">Tudo confere!</div>
+  <p class="mt-1 text-sm text-slate-400">Todas as operações da B3 no período estão registradas no app com os mesmos números.</p>
+</div>
+{% endif %}
+
+{% if rec.only_b3 %}
+<section class="mb-6 rounded-xl border border-red-400/25 bg-slate-900/70 shadow-sm">
+  <div class="border-b border-white/10 px-4 py-3">
+    <h2 class="text-sm font-semibold text-red-300">⚠ Está na B3 e NÃO está no app — provavelmente falta importar nota</h2>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full whitespace-nowrap text-sm tabular-nums">
+      <thead class="text-left text-[11px] uppercase tracking-wider text-slate-500">
+        <tr><th class="px-4 py-2">Data</th><th class="px-4 py-2">Ativo</th><th class="px-4 py-2">Lado</th><th class="px-4 py-2 text-right">Qtd</th><th class="px-4 py-2 text-right">Financeiro</th></tr>
+      </thead>
+      <tbody class="divide-y divide-white/5">
+        {% for r in rec.only_b3 %}
+        <tr><td class="px-4 py-2 text-slate-400">{{ r.date.strftime("%d/%m/%Y") }}</td>
+            <td class="px-4 py-2 font-medium text-white">{{ r.asset }}</td>
+            <td class="px-4 py-2 {{ 'text-emerald-300' if r.side == 'C' else 'text-red-300' }}">{{ 'Compra' if r.side == 'C' else 'Venda' }}</td>
+            <td class="px-4 py-2 text-right text-slate-300">{{ r.qty|num(0) }}</td>
+            <td class="px-4 py-2 text-right text-slate-300">{{ r.gross|brl }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{% if rec.only_app %}
+<section class="mb-6 rounded-xl border border-amber-400/25 bg-slate-900/70 shadow-sm">
+  <div class="border-b border-white/10 px-4 py-3">
+    <h2 class="text-sm font-semibold text-amber-300">Está no app e não aparece na B3 — confira lançamentos manuais e o período da planilha</h2>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full whitespace-nowrap text-sm tabular-nums">
+      <thead class="text-left text-[11px] uppercase tracking-wider text-slate-500">
+        <tr><th class="px-4 py-2">Data</th><th class="px-4 py-2">Ativo</th><th class="px-4 py-2">Lado</th><th class="px-4 py-2 text-right">Qtd</th><th class="px-4 py-2 text-right">Financeiro</th></tr>
+      </thead>
+      <tbody class="divide-y divide-white/5">
+        {% for r in rec.only_app %}
+        <tr><td class="px-4 py-2 text-slate-400">{{ r.date.strftime("%d/%m/%Y") }}</td>
+            <td class="px-4 py-2 font-medium text-white">{{ r.asset }}</td>
+            <td class="px-4 py-2 {{ 'text-emerald-300' if r.side == 'C' else 'text-red-300' }}">{{ 'Compra' if r.side == 'C' else 'Venda' }}</td>
+            <td class="px-4 py-2 text-right text-slate-300">{{ r.qty|num(0) }}</td>
+            <td class="px-4 py-2 text-right text-slate-300">{{ r.gross|brl }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{% if rec.mismatch %}
+<section class="mb-6 rounded-xl border border-amber-400/25 bg-slate-900/70 shadow-sm">
+  <div class="border-b border-white/10 px-4 py-3">
+    <h2 class="text-sm font-semibold text-amber-300">Existe nos dois, mas os números divergem</h2>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full whitespace-nowrap text-sm tabular-nums">
+      <thead class="text-left text-[11px] uppercase tracking-wider text-slate-500">
+        <tr><th class="px-4 py-2">Data</th><th class="px-4 py-2">Ativo</th><th class="px-4 py-2">Lado</th><th class="px-4 py-2 text-right">Qtd app</th><th class="px-4 py-2 text-right">Qtd B3</th><th class="px-4 py-2 text-right">Fin. app</th><th class="px-4 py-2 text-right">Fin. B3</th></tr>
+      </thead>
+      <tbody class="divide-y divide-white/5">
+        {% for r in rec.mismatch %}
+        <tr><td class="px-4 py-2 text-slate-400">{{ r.date.strftime("%d/%m/%Y") }}</td>
+            <td class="px-4 py-2 font-medium text-white">{{ r.asset }}</td>
+            <td class="px-4 py-2 {{ 'text-emerald-300' if r.side == 'C' else 'text-red-300' }}">{{ 'Compra' if r.side == 'C' else 'Venda' }}</td>
+            <td class="px-4 py-2 text-right {{ 'text-amber-300' if r.app_qty != r.b3_qty else 'text-slate-300' }}">{{ r.app_qty|num(0) }}</td>
+            <td class="px-4 py-2 text-right {{ 'text-amber-300' if r.app_qty != r.b3_qty else 'text-slate-300' }}">{{ r.b3_qty|num(0) }}</td>
+            <td class="px-4 py-2 text-right text-slate-300">{{ r.app_gross|brl }}</td>
+            <td class="px-4 py-2 text-right text-slate-300">{{ r.b3_gross|brl }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{% if warnings %}
+<p class="text-xs text-amber-300/80">{{ warnings|join(" ") }}</p>
+{% endif %}
+<p class="mt-2 text-xs leading-relaxed text-slate-600">
+  A comparação agrega por dia (a B3 lista negócio a negócio; a nota consolida). Financeiro tolera 1% de
+  diferença por arredondamentos. Operações de futuros comparam o valor em reais.
+</p>
+{% endblock %}

@@ -22,7 +22,16 @@ from werkzeug.utils import secure_filename
 
 from .extensions import db
 from .models import B3Connection, BrokerageNote, Note, PositionAdjustment, Trade, User
-from .services import b3_import, contracts, darf_pdf, fees, ocr, tax_engine
+from .services import (
+    annual_pdf,
+    annual_report,
+    b3_import,
+    contracts,
+    darf_pdf,
+    fees,
+    ocr,
+    tax_engine,
+)
 from .services.b3_client import B3Config, sync_status
 
 main_bp = Blueprint("main", __name__)
@@ -501,6 +510,38 @@ def apuracao():
     )
 
 
+@main_bp.route("/relatorio")
+@main_bp.route("/relatorio/<int:year>")
+@login_required
+def annual_report_view(year=None):
+    """Relatório anual de apoio à DIRPF."""
+    notes = _user_notes()
+    years = annual_report.years_available(notes)
+    if not years:
+        flash("Importe notas para gerar o relatório anual.", "warning")
+        return redirect(url_for("main.upload"))
+    if year is None:
+        # padrão: ano fechado mais recente (ou o único disponível)
+        year = years[1] if (len(years) > 1 and years[0] == date.today().year) else years[0]
+    if year not in years:
+        abort(404)
+    data = annual_report.build(notes, _user_adjustments(), year)
+    return render_template("annual_report.html", data=data, years=years, year=year)
+
+
+@main_bp.route("/relatorio/<int:year>/pdf")
+@login_required
+def annual_report_pdf(year):
+    notes = _user_notes()
+    if year not in annual_report.years_available(notes):
+        abort(404)
+    data = annual_report.build(notes, _user_adjustments(), year)
+    pdf_bytes = annual_pdf.build(current_user, data)
+    resp = Response(pdf_bytes, mimetype="application/pdf")
+    resp.headers["Content-Disposition"] = f"inline; filename=relatorio-dirpf-{year}.pdf"
+    return resp
+
+
 @main_bp.route("/apuracao/<int:year>/<int:month>")
 @login_required
 def apuracao_mes(year, month):
@@ -812,6 +853,43 @@ def b3_integration():
 
     status = sync_status(conn, cfg)
     return render_template("integrations.html", status=status, cfg=cfg)
+
+
+@main_bp.route("/integracoes/b3/conferir", methods=["POST"])
+@login_required
+def b3_reconcile():
+    """Confere a planilha da B3 contra as notas do app SEM importar nada."""
+    file = request.files.get("planilha")
+    if not file or not file.filename:
+        flash("Selecione a planilha exportada da B3.", "error")
+        return redirect(url_for("main.b3_integration"))
+    if not file.filename.lower().endswith((".xlsx", ".csv")):
+        flash("Envie o arquivo .xlsx ou .csv exportado pela B3.", "error")
+        return redirect(url_for("main.b3_integration"))
+    try:
+        parsed = b3_import.parse(file.stream, file.filename)
+    except Exception as e:  # noqa: BLE001
+        flash(f"Falha ao ler a planilha: {e}", "error")
+        return redirect(url_for("main.b3_integration"))
+
+    b3_trades = parsed["trades"]
+    if not b3_trades:
+        flash("Nenhuma operação na planilha. " + " ".join(parsed["warnings"]), "warning")
+        return redirect(url_for("main.b3_integration"))
+
+    # Limita a comparação ao período coberto pela planilha
+    dates = [t["trade_date"] for t in b3_trades]
+    d_min, d_max = min(dates), max(dates)
+    app_trades = (Trade.query
+                  .join(BrokerageNote, Trade.note_id == BrokerageNote.id)
+                  .filter(Trade.user_id == current_user.id,
+                          BrokerageNote.provisional.is_(False),
+                          Trade.trade_date >= d_min,
+                          Trade.trade_date <= d_max)
+                  .all())
+    rec = b3_import.reconcile(b3_trades, app_trades)
+    return render_template("reconcile.html", rec=rec, d_min=d_min, d_max=d_max,
+                           warnings=parsed["warnings"])
 
 
 @main_bp.route("/integracoes/b3/importar", methods=["POST"])

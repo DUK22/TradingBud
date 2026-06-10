@@ -71,3 +71,57 @@ def test_rota_importa_planilha(app, client, user):
                     content_type="multipart/form-data", follow_redirects=False)
     assert r.status_code == 302
     assert Trade.query.filter_by(user_id=user.id, asset="PETR4").count() == 1
+
+
+def test_reconcile_aponta_faltas_e_divergencias(user):
+    from datetime import date
+    from decimal import Decimal
+
+    from app.extensions import db
+    from app.models import BrokerageNote, Trade
+
+    # App tem: compra PETR4 100@38 em 05/05 + venda VALE3 50@60 em 06/05
+    for d, asset, side, qty, price in [
+        (date(2026, 5, 5), "PETR4", "C", 100, 38),
+        (date(2026, 5, 6), "VALE3", "V", 50, 60),
+    ]:
+        n = BrokerageNote(user_id=user.id, broker="T", trade_date=d, source="MANUAL")
+        db.session.add(n)
+        db.session.flush()
+        db.session.add(Trade(user_id=user.id, note_id=n.id, trade_date=d, asset=asset,
+                             market="VISTA", side=side, quantity=Decimal(qty),
+                             price=Decimal(price), gross_value=Decimal(qty * price)))
+    db.session.commit()
+
+    # B3 tem: PETR4 igual; VALE3 com qty diferente; ITUB4 que não está no app
+    b3_trades = [
+        {"trade_date": date(2026, 5, 5), "asset": "PETR4", "side": "C",
+         "quantity": 100, "gross_value": 3800},
+        {"trade_date": date(2026, 5, 6), "asset": "VALE3", "side": "V",
+         "quantity": 100, "gross_value": 6000},
+        {"trade_date": date(2026, 5, 7), "asset": "ITUB4", "side": "C",
+         "quantity": 200, "gross_value": 7000},
+    ]
+    app_trades = Trade.query.filter_by(user_id=user.id).all()
+    rec = b3_import.reconcile(b3_trades, app_trades)
+
+    assert rec["matched"] == 1                          # PETR4 confere
+    assert [r["asset"] for r in rec["only_b3"]] == ["ITUB4"]
+    assert [r["asset"] for r in rec["mismatch"]] == ["VALE3"]
+    assert rec["only_app"] == []
+
+
+def test_rota_conferir_nao_importa_nada(app, client, user):
+    from app.models import Trade
+
+    buf = _xlsx([HEADER,
+        ["05/05/2026", "Compra", "Mercado à Vista", "", "BTG", "PETR4", 100, 38.50, 3850.00],
+    ])
+    _login(client)
+    r = client.post("/integracoes/b3/conferir",
+                    data={"planilha": (buf, "neg.xlsx")},
+                    content_type="multipart/form-data", follow_redirects=True)
+    html = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert "falta nota" in html.lower() or "Só na B3" in html
+    assert Trade.query.count() == 0       # nada importado

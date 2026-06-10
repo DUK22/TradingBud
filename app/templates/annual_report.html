@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Relatório anual {{ year }} · IR Traders{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <div class="text-xs font-medium uppercase tracking-wider text-cyan-300/80">Apoio à DIRPF {{ year + 1 }}</div>
+    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-white">Relatório anual {{ year }}</h1>
+    <p class="mt-1 max-w-3xl text-sm text-slate-500">Tudo que você precisa para preencher a declaração: bens e direitos em 31/12, renda variável mês a mês, isentos e prejuízos a transportar. Confira com seu contador.</p>
+  </div>
+  <div class="flex items-center gap-2">
+    <div class="flex rounded-lg border border-white/10 p-0.5">
+      {% for y in years %}
+      <a href="{{ url_for('main.annual_report_view', year=y) }}"
+         class="rounded-md px-3 py-1.5 text-sm tabular-nums {{ 'bg-cyan-400/15 font-semibold text-cyan-300' if y == year else 'text-slate-400 hover:text-slate-200' }}">{{ y }}</a>
+      {% endfor %}
+    </div>
+    <a href="{{ url_for('main.annual_report_pdf', year=year) }}"
+       class="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">Baixar PDF</a>
+  </div>
+</div>
+
+{% if data.warnings %}
+<div class="mb-6 rounded-lg border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-200">
+  <div class="mb-1 font-semibold">Avisos — resolva antes de declarar</div>
+  <ul class="list-disc space-y-1 pl-5">{% for w in data.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<!-- 1. Bens e Direitos -->
+<section class="rounded-xl border border-white/10 bg-slate-900/70 shadow-sm">
+  <div class="border-b border-white/10 px-4 py-3">
+    <h2 class="text-sm font-semibold text-white">1 · Bens e Direitos em 31/12/{{ year }}</h2>
+    <p class="text-xs text-slate-500">Uma ficha por ativo. Clique em "copiar" para levar a discriminação pronta ao programa da Receita.</p>
+  </div>
+  {% if data.bens %}
+  <div class="overflow-x-auto">
+    <table class="w-full whitespace-nowrap text-sm tabular-nums">
+      <thead class="text-left text-[11px] uppercase tracking-wider text-slate-500">
+        <tr><th class="px-4 py-2">Ativo</th><th class="px-4 py-2">Grupo/Cód.</th><th class="px-4 py-2 text-right">Qtd</th><th class="px-4 py-2 text-right">Preço médio</th><th class="px-4 py-2 text-right">Situação 31/12 (custo)</th><th class="px-4 py-2">Discriminação</th></tr>
+      </thead>
+      <tbody class="divide-y divide-white/5">
+        {% for b in data.bens %}
+        <tr class="hover:bg-white/[0.02]">
+          <td class="px-4 py-2.5 font-medium text-white">{{ b.asset }} <span class="ml-1 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-slate-400">{{ b.classe }}</span></td>
+          <td class="px-4 py-2.5 text-slate-300" title="{{ b.rotulo }}">{{ b.grupo }}/{{ b.codigo }}</td>
+          <td class="px-4 py-2.5 text-right text-slate-300">{{ b.qty|num(0) }}</td>
+          <td class="px-4 py-2.5 text-right text-slate-300">{{ b.avg_price|brl }}</td>
+          <td class="px-4 py-2.5 text-right font-semibold text-white">{{ b.total_cost|brl }}</td>
+          <td class="px-4 py-2.5">
+            <button onclick="copyDiscr(this)" data-discr="{{ b.discriminacao }}"
+                    class="rounded border border-white/10 px-2 py-1 text-[11px] text-cyan-300 hover:bg-cyan-400/10">copiar texto</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="px-4 py-3 text-[11px] text-slate-600">Grupo/código sugeridos para a DIRPF atual — podem mudar a cada exercício; confirme no programa. Futuros não entram (resultado é liquidado em ajustes diários).</p>
+  {% else %}<p class="px-4 py-6 text-sm text-slate-500">Sem posições em aberto em 31/12/{{ year }}.</p>{% endif %}
+</section>
+
+<!-- 2. Renda variável -->
+<section class="mt-6 rounded-xl border border-white/10 bg-slate-900/70 shadow-sm">
+  <div class="border-b border-white/10 px-4 py-3">
+    <h2 class="text-sm font-semibold text-white">2 · Renda Variável — mês a mês</h2>
+    <p class="text-xs text-slate-500">Ficha "Renda Variável → Operações Comuns e Day-Trade" (e "Operações em FII"). Digite as bases por mês.</p>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full whitespace-nowrap text-sm tabular-nums">
+      <thead class="text-left text-[11px] uppercase tracking-wider text-slate-500">
+        <tr><th class="px-4 py-2">Mês</th><th class="px-4 py-2 text-right">Base comum</th><th class="px-4 py-2 text-right">Base day trade</th><th class="px-4 py-2 text-right">Base FII</th><th class="px-4 py-2 text-right">Imposto</th><th class="px-4 py-2 text-right">IRRF comp.</th><th class="px-4 py-2 text-right">DARF</th><th class="px-4 py-2 text-right">Isento 20k</th></tr>
+      </thead>
+      <tbody class="divide-y divide-white/5">
+        {% for m in data.months %}
+        <tr class="hover:bg-white/[0.02]">
+          <td class="px-4 py-2"><a href="{{ url_for('main.apuracao_mes', year=m.year, month=m.month) }}" class="text-slate-200 hover:text-cyan-300">{{ m.month|mes }}</a></td>
+          <td class="px-4 py-2 text-right text-slate-300">{{ m.swing_taxable_base|brl }}</td>
+          <td class="px-4 py-2 text-right text-slate-300">{{ m.day_taxable_base|brl }}</td>
+          <td class="px-4 py-2 text-right text-slate-300">{{ m.fii_taxable_base|brl }}</td>
+          <td class="px-4 py-2 text-right text-amber-300">{{ m.total_tax|brl }}</td>
+          <td class="px-4 py-2 text-right text-slate-400">{{ (m.irrf_day_used + m.irrf_swing_used)|brl }}</td>
+          <td class="px-4 py-2 text-right font-semibold text-white">{{ m.darf|brl }}</td>
+          <td class="px-4 py-2 text-right text-slate-400">{{ (m.exempt_result if m.exempt_result > 0 else 0)|brl }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="border-t border-white/10 text-sm font-semibold">
+        <tr><td class="px-4 py-2.5 text-slate-300">Total</td><td></td><td></td><td></td>
+          <td class="px-4 py-2.5 text-right text-amber-300">{{ data.total_tax|brl }}</td>
+          <td class="px-4 py-2.5 text-right text-slate-300">{{ data.total_irrf|brl }}</td>
+          <td class="px-4 py-2.5 text-right text-white">{{ data.total_darf|brl }}</td>
+          <td class="px-4 py-2.5 text-right text-slate-300">{{ data.isentos_20k|brl }}</td></tr>
+      </tfoot>
+    </table>
+  </div>
+</section>
+
+<!-- 3. Isentos e prejuízos -->
+<div class="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+  <div class="rounded-lg border border-emerald-400/25 bg-white/[0.03] p-4">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Lucros isentos (vendas ≤ 20k)</div>
+    <div class="mt-1 text-xl font-semibold tabular-nums text-emerald-300">{{ data.isentos_20k|brl }}</div>
+    <div class="mt-1 text-xs text-slate-500">Rendimentos Isentos · código 20</div>
+  </div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Prejuízo comum (swing) 31/12</div>
+    <div class="mt-1 text-xl font-semibold tabular-nums text-white">{{ data.losses.swing|brl }}</div>
+    <div class="mt-1 text-xs text-slate-500">transportar p/ jan/{{ year + 1 }}</div>
+  </div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Prejuízo day trade 31/12</div>
+    <div class="mt-1 text-xl font-semibold tabular-nums text-white">{{ data.losses.day|brl }}</div>
+    <div class="mt-1 text-xs text-slate-500">transportar p/ jan/{{ year + 1 }}</div>
+  </div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Prejuízo FII 31/12</div>
+    <div class="mt-1 text-xl font-semibold tabular-nums text-white">{{ data.losses.fii|brl }}</div>
+    <div class="mt-1 text-xs text-slate-500">transportar p/ jan/{{ year + 1 }}</div>
+  </div>
+</div>
+
+<p class="mt-6 text-xs leading-relaxed text-slate-600">
+  Gerado a partir de {{ data.n_notes }} nota(s) até 31/12/{{ year }}. Proventos (dividendos, JCP e rendimentos de FII)
+  não estão incluídos — declare-os à parte. Este relatório é apoio ao preenchimento e não substitui aconselhamento contábil.
+</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function copyDiscr(btn) {
+    navigator.clipboard.writeText(btn.dataset.discr).then(() => {
+      const t = btn.textContent;
+      btn.textContent = 'copiado ✓';
+      setTimeout(() => { btn.textContent = t; }, 1500);
+    });
+  }
+</script>
+{% endblock %}

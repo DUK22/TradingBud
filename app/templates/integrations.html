@@ -25,10 +25,20 @@
         <div class="text-slate-300">Clique para selecionar o arquivo (.xlsx ou .csv)</div>
         <div id="fn" class="mt-2 text-sm text-emerald-300"></div>
       </label>
-      <button class="mt-4 w-full rounded-lg bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-300">
-        Importar negociações
-      </button>
+      <div class="mt-4 grid gap-2 sm:grid-cols-2">
+        <button class="rounded-lg bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-300">
+          Importar negociações
+        </button>
+        <button formaction="{{ url_for('main.b3_reconcile') }}"
+                class="rounded-lg border border-cyan-400/40 px-4 py-2.5 text-sm font-medium text-cyan-300 hover:bg-cyan-400/10">
+          🔍 Só conferir (não importa)
+        </button>
+      </div>
     </form>
+    <p class="mt-3 text-xs leading-relaxed text-slate-600">
+      <strong class="text-slate-400">Conferir</strong> compara a planilha com as notas já importadas e aponta
+      o que falta ou diverge — use mensalmente para garantir que a apuração está completa.
+    </p>
 
     <p class="mt-4 text-xs leading-relaxed text-slate-600">
       O extrato da B3 <strong>não inclui custos</strong> (corretagem/emolumentos) nem IRRF —

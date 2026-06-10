@@ -170,3 +170,54 @@ def parse(stream, filename: str) -> dict:
     elif ignoradas:
         warnings.append(f"{ignoradas} linha(s) ignorada(s) (sem compra/venda válida).")
     return {"trades": trades, "warnings": warnings}
+
+
+# --------------------------------------------------------------------------- #
+# Reconciliação: planilha da B3 × notas importadas no app
+# --------------------------------------------------------------------------- #
+def reconcile(b3_trades: list, app_trades: list) -> dict:
+    """Compara os negócios da planilha B3 com os já registrados no app.
+
+    Agrega por (data, ativo, lado) e aponta:
+      - only_b3 : está na B3 e NÃO está no app (falta nota!)
+      - only_app: está no app e NÃO está na B3 (lançamento manual errado?)
+      - mismatch: existe nos dois, mas quantidade ou financeiro divergem
+    Financeiro tolera 1% (a B3 arredonda; notas têm taxas).
+    """
+    def agg(items, get):
+        out = {}
+        for t in items:
+            d, asset, side, qty, gross = get(t)
+            key = (d, asset.upper().strip(), side)
+            cur = out.setdefault(key, {"qty": Decimal("0"), "gross": Decimal("0")})
+            cur["qty"] += qty
+            cur["gross"] += gross
+        return out
+
+    b3 = agg(b3_trades, lambda t: (t["trade_date"], t["asset"], t["side"],
+                                   Decimal(str(t["quantity"])),
+                                   Decimal(str(t["gross_value"]))))
+    app = agg(app_trades, lambda t: (t.trade_date, t.asset, t.side,
+                                     Decimal(str(t.quantity)),
+                                     Decimal(str(t.gross_value))))
+
+    only_b3, only_app, mismatch, matched = [], [], [], 0
+    for key in sorted(set(b3) | set(app)):
+        d, asset, side = key
+        row = {"date": d, "asset": asset, "side": side}
+        if key not in app:
+            only_b3.append({**row, **b3[key]})
+        elif key not in b3:
+            only_app.append({**row, **app[key]})
+        else:
+            qa, qb = app[key]["qty"], b3[key]["qty"]
+            ga, gb = app[key]["gross"], b3[key]["gross"]
+            tol = max(abs(gb) * Decimal("0.01"), Decimal("0.05"))
+            if qa != qb or abs(ga - gb) > tol:
+                mismatch.append({**row, "app_qty": qa, "b3_qty": qb,
+                                 "app_gross": ga, "b3_gross": gb})
+            else:
+                matched += 1
+    return {"only_b3": only_b3, "only_app": only_app,
+            "mismatch": mismatch, "matched": matched,
+            "total_keys": len(set(b3) | set(app))}

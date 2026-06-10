@@ -39,6 +39,11 @@ de prejuízos e alíquotas corretas, e mostra tudo num dashboard.
 7. **Automação** — upload de notas **em lote** com deduplicação por número,
    drill-down da apuração (mês → operação por operação) e lembrete mensal de
    DARF por e-mail (`flask darf-remind`, agendável via cron).
+8. **Relatório anual DIRPF** — bens e direitos em 31/12 com discriminação
+   pronta (copiar/colar), renda variável mês a mês, isentos e prejuízos a
+   transportar; em página e PDF (`/relatorio`).
+9. **Reconciliação** — confere a planilha de Negociação da B3 contra as notas
+   importadas e aponta o que falta ou diverge, sem importar nada.
 
 ## Stack
 
