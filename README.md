@@ -28,10 +28,9 @@ de prejuízos e alíquotas corretas, e mostra tudo num dashboard.
    (código 6015). Avisos automáticos: venda a descoberto e ETF de renda fixa.
    **Eventos corporativos** (desdobramento/grupamento/bonificação) são
    lançados na tela "Ajustes" e aplicados na data correta.
-4. **Integração B3 (Área do Investidor)** — arquitetura pronta (`B3InvestidorClient`)
-   com pontos de extensão `authenticate()` / `get_movements()` e o mapeamento
-   `to_trades()` já implementado. Basta ativar quando as credenciais OAuth2
-   estiverem disponíveis.
+4. **Integração B3 (Área do Investidor)** — importação das planilhas de
+   Negociação e Movimentação (todas as corretoras de uma vez), com
+   reconciliação e dedupe.
 5. **Multi-usuário (SaaS)** — cadastro/login, senhas com hash, dados isolados
    por usuário, **verificação de e-mail** e **reset de senha** por token
    (e-mails via SMTP configurável; sem SMTP, o link sai no log — modo dev).
@@ -44,6 +43,9 @@ de prejuízos e alíquotas corretas, e mostra tudo num dashboard.
    transportar; em página e PDF (`/relatorio`).
 9. **Reconciliação** — confere a planilha de Negociação da B3 contra as notas
    importadas e aponta o que falta ou diverge, sem importar nada.
+10. **Proventos** — dividendos, JCP e rendimentos de FII importados do extrato
+    de Movimentação da B3 (com dedupe), com totais por tipo/ativo e integrados
+    ao relatório anual da DIRPF.
 
 ## Stack
 

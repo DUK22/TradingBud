@@ -1,22 +1,17 @@
-"""Stub de integração com a B3 — Área do Investidor.
+"""Utilidades da integração B3 (Área do Investidor).
 
-Objetivo: deixar a arquitetura PRONTA para sincronização automática das
-negociações, sem acoplar o resto do sistema. Hoje a B3 expõe os dados ao
-investidor via portal/CEI; o acesso programático oficial depende de
-convênio/credenciais (OAuth2). Quando disponível, basta implementar os
-métodos marcados com NotImplementedError — o mapeamento para o modelo
-interno (to_trades) já está pronto.
+O acesso programático oficial da B3 segue restrito a convênios — para pessoa
+física, o caminho suportado é a importação das planilhas (Negociação e
+Movimentação), já implementada em b3_import/income_import. Aqui ficam apenas:
 
-Uso previsto:
-    client = B3InvestidorClient.from_config(app.config)
-    client.authenticate(consent_token)          # OAuth2 (a implementar)
-    payload = client.get_movements(cpf, ini, fim)
-    trades  = client.to_trades(payload)         # -> dicts no formato interno
+  - B3Config / sync_status: estado exibido na tela de Integrações.
+  - to_trades: mapeamento payload -> modelo interno (usado pela importação e
+    pronto para um eventual acesso direto à API no futuro).
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 
 
@@ -42,7 +37,7 @@ class B3IntegrationError(RuntimeError):
 
 
 class B3InvestidorClient:
-    """Cliente da Área do Investidor da B3 (placeholder)."""
+    """Mapeamentos do formato da B3 para o modelo interno."""
 
     def __init__(self, cfg: B3Config):
         self.cfg = cfg
@@ -51,61 +46,43 @@ class B3InvestidorClient:
     def from_config(cls, app_config) -> B3InvestidorClient:
         return cls(B3Config.from_app_config(app_config))
 
-    # --- A IMPLEMENTAR quando o acesso oficial estiver disponível ---
-    def authenticate(self, consent_token: str) -> dict:
-        """Troca o consentimento do investidor por access/refresh token (OAuth2)."""
-        raise NotImplementedError(
-            "Integração B3 ainda não habilitada. Configure B3_CLIENT_ID/SECRET e "
-            "implemente o fluxo OAuth2 da Área do Investidor."
-        )
-
-    def get_movements(self, cpf: str, start: date, end: date) -> dict:
-        """Busca negociações/movimentações no período (JSON da B3)."""
-        raise NotImplementedError("Endpoint de negociações da B3 a implementar.")
-
-    # --- JÁ PRONTO: mapeamento p/ o modelo interno ---
     @staticmethod
     def to_trades(payload: dict) -> list:
-        """Converte o payload da B3 para a lista de dicts usada pelo importador.
-
-        Espera algo como:
-            {"negociacoes": [
-                {"ticker": "PETR4", "tipoMovimentacao": "Compra",
-                 "quantidade": 100, "precoUnitario": 38.50,
-                 "data": "2026-05-04", "mercado": "Mercado à Vista"}, ...]}
-
-        Retorna dicts no formato consumido por importar_trades():
-            {asset, side, quantity, price, gross_value, market, trade_date}
-        """
+        """Converte negociações (formato B3) em dicts do modelo interno."""
         out = []
-        for item in payload.get("negociacoes", []):
-            side = "C" if str(item.get("tipoMovimentacao", "")).lower().startswith("compra") else "V"
+        for item in (payload or {}).get("negociacoes", []):
+            side = "C" if "compra" in str(item.get("tipoMovimentacao", "")).lower() else "V"
+            mercado = str(item.get("mercado", "")).lower()
+            if "fracion" in mercado:
+                market = "FRACIONARIO"
+            elif "opc" in mercado or "opç" in mercado:
+                market = "OPCAO"
+            elif "termo" in mercado:
+                market = "TERMO"
+            else:
+                market = "VISTA"
             qty = Decimal(str(item.get("quantidade", 0)))
             price = Decimal(str(item.get("precoUnitario", 0)))
-            d = item.get("data")
-            try:
-                td = datetime.strptime(d, "%Y-%m-%d").date() if d else None
-            except ValueError:
-                td = None
-            mkt = str(item.get("mercado", "")).upper()
-            market = "FRACIONARIO" if "FRACION" in mkt else ("OPCAO" if "OP" in mkt else "VISTA")
             out.append({
-                "asset": item.get("ticker", "").upper(),
+                "asset": str(item.get("ticker", "")).upper().strip(),
                 "side": side,
+                "market": market,
                 "quantity": qty,
                 "price": price,
                 "gross_value": qty * price,
-                "market": market,
-                "trade_date": td,
+                "trade_date": datetime.strptime(item["data"], "%Y-%m-%d").date()
+                if item.get("data") else None,
             })
         return out
 
 
 def sync_status(connection, cfg: B3Config) -> dict:
-    """Resumo do estado da integração para a UI."""
-    if not cfg.enabled or not cfg.client_id:
-        return {"available": False,
-                "message": "Integração não configurada (defina B3_ENABLED=1 e credenciais)."}
-    status = connection.status if connection else "disconnected"
-    return {"available": True, "status": status,
-            "message": (connection.last_message if connection else "Pronto para conectar.")}
+    """Estado mostrado na tela de Integrações."""
+    available = bool(cfg.enabled and cfg.client_id and cfg.client_secret)
+    status = getattr(connection, "status", None) or "disconnected"
+    return {
+        "available": available,
+        "status": status if available else "unavailable",
+        "last_sync_at": getattr(connection, "last_sync_at", None),
+        "last_message": getattr(connection, "last_message", None),
+    }

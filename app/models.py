@@ -60,6 +60,9 @@ class User(UserMixin, db.Model):
     adjustments = db.relationship(
         "PositionAdjustment", backref="user", lazy=True, cascade="all, delete-orphan"
     )
+    incomes = db.relationship(
+        "Income", backref="user", lazy=True, cascade="all, delete-orphan"
+    )
 
     def set_password(self, raw: str):
         self.password_hash = generate_password_hash(raw)
@@ -213,4 +216,25 @@ class PositionAdjustment(db.Model):
     qty = db.Column(NUM)             # bonificação
     price = db.Column(NUM)           # bonificação: custo unitário atribuído
     note = db.Column(db.String(255), default="")
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
+class Income(db.Model):
+    """Provento recebido (dividendo, JCP ou rendimento de FII).
+
+    Importado da planilha de Movimentação da B3 ou lançado manualmente.
+    Valores como creditados (JCP já vem líquido do IRRF de 15% no extrato)."""
+
+    __tablename__ = "incomes"
+
+    KINDS = ("DIVIDENDO", "JCP", "RENDIMENTO")
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    asset = db.Column(db.String(20), nullable=False, index=True)
+    income_date = db.Column(db.Date, nullable=False, index=True)
+    kind = db.Column(db.String(20), nullable=False)
+    value = db.Column(NUM, nullable=False)
+    broker = db.Column(db.String(60), default="")
+    source = db.Column(db.String(20), default="B3")     # B3 | MANUAL
     created_at = db.Column(db.DateTime, default=utcnow)

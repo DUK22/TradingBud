@@ -72,3 +72,33 @@ def compute_stats(result) -> dict:
 
     return {"overall": overall, "by_asset": by_asset,
             "by_weekday": by_weekday, "by_kind": by_kind}
+
+
+def to_text(stats: dict) -> str:
+    """Resumo compacto em texto (contexto p/ a IA do Coach)."""
+    o = stats["overall"]
+    if not o["n_ops"]:
+        return ""
+    pf = f"{o['profit_factor']:.2f}" if o["profit_factor"] is not None else "n/d"
+    lines = [
+        f"Operações fechadas: {o['n_ops']} ({o['wins']} ganhos / {o['losses']} perdas, "
+        f"taxa de acerto {o['win_rate']:.0f}%)",
+        f"Resultado líquido: R$ {o['net']:.2f} | Fator de lucro: {pf} | "
+        f"Expectativa: R$ {o['expectancy']:.2f}/op",
+        f"Ganho médio: R$ {o['avg_win']:.2f} | Perda média: R$ {o['avg_loss']:.2f} | "
+        f"Melhor: R$ {o['best']:.2f} | Pior: R$ {o['worst']:.2f}",
+    ]
+    if stats["by_weekday"]:
+        wd = ", ".join(f"{b['label']}: {b['win_rate']:.0f}% em {b['n']} ops "
+                       f"(R$ {b['net']:.0f})" for b in stats["by_weekday"])
+        lines.append("Por dia da semana: " + wd)
+    if stats["by_asset"]:
+        at = ", ".join(f"{b['key']}: R$ {b['net']:.0f} em {b['n']} ops"
+                       for b in stats["by_asset"][:5])
+        lines.append("Por ativo (top): " + at)
+    if stats["by_kind"]:
+        kd = ", ".join(f"{'day trade' if b['key'] == 'DAY' else 'swing'}: "
+                       f"{b['win_rate']:.0f}% em {b['n']} ops (R$ {b['net']:.0f})"
+                       for b in stats["by_kind"])
+        lines.append("Por modalidade: " + kd)
+    return "\n".join(lines)

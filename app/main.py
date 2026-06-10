@@ -21,7 +21,7 @@ from flask_login import current_user, login_required, logout_user
 from werkzeug.utils import secure_filename
 
 from .extensions import db
-from .models import B3Connection, BrokerageNote, Note, PositionAdjustment, Trade, User
+from .models import B3Connection, BrokerageNote, Income, Note, PositionAdjustment, Trade, User
 from .services import (
     annual_pdf,
     annual_report,
@@ -29,6 +29,7 @@ from .services import (
     contracts,
     darf_pdf,
     fees,
+    income_import,
     ocr,
     tax_engine,
 )
@@ -525,7 +526,8 @@ def annual_report_view(year=None):
         year = years[1] if (len(years) > 1 and years[0] == date.today().year) else years[0]
     if year not in years:
         abort(404)
-    data = annual_report.build(notes, _user_adjustments(), year)
+    incomes_all = Income.query.filter_by(user_id=current_user.id).all()
+    data = annual_report.build(notes, _user_adjustments(), year, incomes=incomes_all)
     return render_template("annual_report.html", data=data, years=years, year=year)
 
 
@@ -535,7 +537,8 @@ def annual_report_pdf(year):
     notes = _user_notes()
     if year not in annual_report.years_available(notes):
         abort(404)
-    data = annual_report.build(notes, _user_adjustments(), year)
+    incomes_all = Income.query.filter_by(user_id=current_user.id).all()
+    data = annual_report.build(notes, _user_adjustments(), year, incomes=incomes_all)
     pdf_bytes = annual_pdf.build(current_user, data)
     resp = Response(pdf_bytes, mimetype="application/pdf")
     resp.headers["Content-Disposition"] = f"inline; filename=relatorio-dirpf-{year}.pdf"
@@ -576,6 +579,85 @@ def darf_pdf_download(year, month):
         f"inline; filename=darf-{year}-{month:02d}.pdf")
     return resp
 
+
+
+# --------------------------------------------------------------------------- #
+# Proventos (dividendos / JCP / rendimentos)
+# --------------------------------------------------------------------------- #
+@main_bp.route("/proventos")
+@login_required
+def incomes():
+    years = sorted({int(y) for (y,) in db.session.query(
+        db.extract("year", Income.income_date))
+        .filter(Income.user_id == current_user.id).distinct().all() if y},
+        reverse=True)
+    year = request.args.get("ano", type=int) or (years[0] if years else date.today().year)
+
+    items = (Income.query.filter_by(user_id=current_user.id)
+             .filter(db.extract("year", Income.income_date) == year)
+             .order_by(Income.income_date.desc(), Income.asset).all())
+
+    totals = {k: Decimal("0") for k in Income.KINDS}
+    by_asset = defaultdict(lambda: defaultdict(Decimal))
+    for i in items:
+        v = Decimal(str(i.value))
+        totals[i.kind] = totals.get(i.kind, Decimal("0")) + v
+        by_asset[i.asset][i.kind] += v
+        by_asset[i.asset]["TOTAL"] += v
+    assets = sorted(by_asset.items(), key=lambda kv: kv[1]["TOTAL"], reverse=True)
+
+    return render_template("incomes.html", items=items, totals=totals,
+                           assets=assets, year=year, years=years or [year],
+                           total_geral=sum(totals.values(), Decimal("0")))
+
+
+@main_bp.route("/proventos/importar", methods=["POST"])
+@login_required
+def incomes_import():
+    file = request.files.get("planilha")
+    if not file or not file.filename:
+        flash("Selecione a planilha de Movimentação da B3.", "error")
+        return redirect(url_for("main.incomes"))
+    if not file.filename.lower().endswith((".xlsx", ".csv")):
+        flash("Envie o arquivo .xlsx ou .csv exportado pela B3.", "error")
+        return redirect(url_for("main.incomes"))
+    try:
+        parsed = income_import.parse(file.stream, file.filename)
+    except Exception as e:  # noqa: BLE001
+        flash(f"Falha ao ler a planilha: {e}", "error")
+        return redirect(url_for("main.incomes"))
+
+    novos = dups = 0
+    for inc in parsed["incomes"]:
+        exists = Income.query.filter_by(
+            user_id=current_user.id, asset=inc["asset"], kind=inc["kind"],
+            income_date=inc["income_date"], value=inc["value"]).first()
+        if exists:
+            dups += 1
+            continue
+        db.session.add(Income(user_id=current_user.id, source="B3", **inc))
+        novos += 1
+    db.session.commit()
+
+    msg = f"{novos} provento(s) importado(s)."
+    if dups:
+        msg += f" {dups} duplicado(s) ignorado(s)."
+    if parsed["warnings"]:
+        msg += " " + " ".join(parsed["warnings"])
+    flash(msg, "success" if novos else "warning")
+    return redirect(url_for("main.incomes"))
+
+
+@main_bp.route("/proventos/<int:income_id>/excluir", methods=["POST"])
+@login_required
+def income_delete(income_id):
+    inc = db.session.get(Income, income_id)
+    if not inc or inc.user_id != current_user.id:
+        abort(404)
+    db.session.delete(inc)
+    db.session.commit()
+    flash("Provento removido.", "success")
+    return redirect(url_for("main.incomes"))
 
 
 # --------------------------------------------------------------------------- #

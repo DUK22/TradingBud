@@ -119,9 +119,49 @@
   </div>
 </div>
 
+<!-- 4. Proventos -->
+<section class="mt-6 rounded-xl border border-white/10 bg-slate-900/70 shadow-sm">
+  <div class="border-b border-white/10 px-4 py-3">
+    <h2 class="text-sm font-semibold text-white">4 · Proventos recebidos em {{ year }}</h2>
+    <p class="text-xs text-slate-500">Dividendos → Isentos cód. 09 · JCP → Tributação Exclusiva cód. 10 · Rendimentos FII → Isentos cód. 26.</p>
+  </div>
+  {% if data.prov_total > 0 %}
+  <div class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
+    <div><div class="text-[11px] uppercase tracking-wider text-slate-500">Dividendos</div>
+      <div class="mt-1 text-lg font-semibold tabular-nums text-emerald-300">{{ data.prov_totals.DIVIDENDO|brl }}</div></div>
+    <div><div class="text-[11px] uppercase tracking-wider text-slate-500">JCP</div>
+      <div class="mt-1 text-lg font-semibold tabular-nums text-amber-300">{{ data.prov_totals.JCP|brl }}</div></div>
+    <div><div class="text-[11px] uppercase tracking-wider text-slate-500">Rendimentos FII</div>
+      <div class="mt-1 text-lg font-semibold tabular-nums text-cyan-300">{{ data.prov_totals.RENDIMENTO|brl }}</div></div>
+    <div><div class="text-[11px] uppercase tracking-wider text-slate-500">Total</div>
+      <div class="mt-1 text-lg font-semibold tabular-nums text-white">{{ data.prov_total|brl }}</div></div>
+  </div>
+  <div class="overflow-x-auto border-t border-white/5">
+    <table class="w-full whitespace-nowrap text-sm tabular-nums">
+      <thead class="text-left text-[11px] uppercase tracking-wider text-slate-500">
+        <tr><th class="px-4 py-2">Ativo</th><th class="px-4 py-2 text-right">Dividendos</th><th class="px-4 py-2 text-right">JCP</th><th class="px-4 py-2 text-right">Rendimentos</th><th class="px-4 py-2 text-right">Total</th></tr>
+      </thead>
+      <tbody class="divide-y divide-white/5">
+        {% for asset, t in data.prov_assets %}
+        <tr class="hover:bg-white/[0.02]">
+          <td class="px-4 py-2 font-medium text-white">{{ asset }}</td>
+          <td class="px-4 py-2 text-right text-slate-300">{{ t.DIVIDENDO|brl }}</td>
+          <td class="px-4 py-2 text-right text-slate-300">{{ t.JCP|brl }}</td>
+          <td class="px-4 py-2 text-right text-slate-300">{{ t.RENDIMENTO|brl }}</td>
+          <td class="px-4 py-2 text-right font-semibold text-slate-200">{{ t.TOTAL|brl }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="px-4 py-5 text-sm text-slate-500">Nenhum provento registrado em {{ year }} — importe o extrato de Movimentação na página <a href="{{ url_for('main.incomes') }}" class="text-cyan-300 hover:underline">Proventos</a>.</p>
+  {% endif %}
+</section>
+
 <p class="mt-6 text-xs leading-relaxed text-slate-600">
-  Gerado a partir de {{ data.n_notes }} nota(s) até 31/12/{{ year }}. Proventos (dividendos, JCP e rendimentos de FII)
-  não estão incluídos — declare-os à parte. Este relatório é apoio ao preenchimento e não substitui aconselhamento contábil.
+  Gerado a partir de {{ data.n_notes }} nota(s) até 31/12/{{ year }}. Este relatório é apoio ao preenchimento
+  e não substitui aconselhamento contábil. Códigos de fichas podem mudar a cada exercício — confirme no programa.
 </p>
 {% endblock %}
 

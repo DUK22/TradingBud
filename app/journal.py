@@ -377,7 +377,14 @@ def coach_checklist():
 @login_required
 def coach_chat():
     question = (request.get_json(silent=True) or {}).get("question", "")
-    return jsonify(ai_insights.chat(_active_strategy_text(), _notes_text(15), question))
+    # Contexto = números REAIS (das notas) + anotações do diário
+    stats_text = trade_stats.to_text(_coach_stats())
+    context = _notes_text(15)
+    if stats_text:
+        context = ("ESTATÍSTICAS REAIS DO TRADER (calculadas das notas de "
+                   "corretagem — use como evidência):\n" + stats_text
+                   + "\n\nDIÁRIO:\n" + context)
+    return jsonify(ai_insights.chat(_active_strategy_text(), context, question))
 
 
 @journal_bp.route("/coach/resumo", methods=["POST"])

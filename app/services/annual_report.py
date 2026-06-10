@@ -30,7 +30,7 @@ GROUP_CODE = {
 }
 
 
-def build(notes, adjustments, year: int) -> dict:
+def build(notes, adjustments, year: int, incomes=()) -> dict:
     """Calcula o relatório do ano usando só o histórico até 31/12/year."""
     cutoff = date(year, 12, 31)
     notes_y = [n for n in notes if n.trade_date <= cutoff]
@@ -64,6 +64,20 @@ def build(notes, adjustments, year: int) -> dict:
     total_tax = sum((m.total_tax for m in months), D0)
     total_irrf = sum((m.irrf_day + m.irrf_swing for m in months), D0)
 
+    # Proventos do ano (dividendos isentos, JCP exclusiva, rendimentos FII)
+    incomes_y = [i for i in (incomes or []) if i.income_date.year == year]
+    prov_totals = {"DIVIDENDO": D0, "JCP": D0, "RENDIMENTO": D0}
+    prov_by_asset: dict = {}
+    for i in incomes_y:
+        v = Decimal(str(i.value))
+        prov_totals[i.kind] = prov_totals.get(i.kind, D0) + v
+        bucket = prov_by_asset.setdefault(i.asset, {"DIVIDENDO": D0, "JCP": D0,
+                                                    "RENDIMENTO": D0, "TOTAL": D0})
+        bucket[i.kind] = bucket.get(i.kind, D0) + v
+        bucket["TOTAL"] += v
+    prov_assets = sorted(prov_by_asset.items(), key=lambda kv: kv[1]["TOTAL"],
+                         reverse=True)
+
     last = months[-1] if months else prev_last
     losses = {
         "day": last.day_loss_acc if last else D0,
@@ -86,6 +100,9 @@ def build(notes, adjustments, year: int) -> dict:
         "total_irrf": total_irrf,
         "losses": losses,
         "losses_prev": losses_prev,
+        "prov_totals": prov_totals,
+        "prov_assets": prov_assets,
+        "prov_total": sum(prov_totals.values(), D0),
         "warnings": result.warnings,
         "n_notes": len(notes_y),
         "has_data": bool(months or bens),

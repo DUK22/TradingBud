@@ -101,8 +101,28 @@ def build(user, data) -> bytes:
         f"   Day trade: {_brl(data['losses']['day'])}\n"
         f"   FII: {_brl(data['losses']['fii'])}"))
 
+    # ----- 4. Proventos -----
+    _h2(pdf, f"4. Proventos recebidos em {year}")
+    if data.get("prov_total", 0) > 0:
+        pdf.set_font("Helvetica", "", 9.5)
+        pdf.multi_cell(0, 5.5, _lat1(
+            f"Dividendos (Isentos, cód. 09): {_brl(data['prov_totals']['DIVIDENDO'])}\n"
+            f"JCP (Tributação Exclusiva, cód. 10): {_brl(data['prov_totals']['JCP'])}\n"
+            f"Rendimentos de FII (Isentos, cód. 26): {_brl(data['prov_totals']['RENDIMENTO'])}"))
+        pdf.ln(1)
+        widths = [28, 38, 38, 38, 38]
+        _row(pdf, [("Ativo", "L"), ("Dividendos", "R"), ("JCP", "R"),
+                   ("Rendimentos", "R"), ("Total", "R")], widths, bold=True, fill=True)
+        for asset, t in data["prov_assets"]:
+            _row(pdf, [(asset, "L"), (_brl(t["DIVIDENDO"]), "R"), (_brl(t["JCP"]), "R"),
+                       (_brl(t["RENDIMENTO"]), "R"), (_brl(t["TOTAL"]), "R")], widths)
+    else:
+        pdf.set_font("Helvetica", "", 9)
+        pdf.cell(0, 6, _lat1("Nenhum provento registrado no ano."),
+                 new_x="LMARGIN", new_y="NEXT")
+
     if data["warnings"]:
-        _h2(pdf, "4. Avisos da apuração")
+        _h2(pdf, "5. Avisos da apuração")
         pdf.set_font("Helvetica", "", 8.5)
         pdf.set_text_color(150, 100, 0)
         for w in data["warnings"]:
@@ -113,8 +133,7 @@ def build(user, data) -> bytes:
     pdf.set_font("Helvetica", "I", 7.5)
     pdf.set_text_color(130)
     pdf.multi_cell(0, 4, _lat1(
-        "Documento de apoio gerado pelo IR Traders a partir das notas importadas. Não "
-        "substitui a conferência de um contador nem inclui proventos (dividendos/JCP), "
-        "que devem ser declarados à parte. Códigos de Bens e Direitos podem mudar a cada "
-        "exercício - confirme no programa da DIRPF."))
+        "Documento de apoio gerado pelo IR Traders a partir das notas e extratos "
+        "importados. Não substitui a conferência de um contador. Códigos de fichas "
+        "podem mudar a cada exercício - confirme no programa da DIRPF."))
     return bytes(pdf.output())
