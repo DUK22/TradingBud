@@ -44,6 +44,7 @@ def _resolve_cpf_enc_key() -> str | None:
 
 class Config:
     # --- Segurança ---
+    ENV_IS_PRODUCTION = IS_PRODUCTION
     SECRET_KEY = _resolve_secret_key()
     CPF_ENC_KEY = _resolve_cpf_enc_key()
 

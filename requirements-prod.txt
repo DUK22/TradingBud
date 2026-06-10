@@ -8,3 +8,5 @@ gunicorn==23.0.0
 waitress==3.0.0
 # Driver PostgreSQL (produção; o binário já traz a libpq):
 psycopg2-binary==2.9.9
+# Observabilidade (opcional — ativa com SENTRY_DSN):
+sentry-sdk[flask]==2.20.0

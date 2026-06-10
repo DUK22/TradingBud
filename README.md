@@ -46,6 +46,11 @@ de prejuízos e alíquotas corretas, e mostra tudo num dashboard.
 10. **Proventos** — dividendos, JCP e rendimentos de FII importados do extrato
     de Movimentação da B3 (com dedupe), com totais por tipo/ativo e integrados
     ao relatório anual da DIRPF.
+11. **Importação por e-mail** — encaminhe o e-mail da corretora (nota em PDF)
+    para a caixa configurada e `flask import-mail` (cron) importa sozinho,
+    casando o remetente com a conta e ignorando duplicatas.
+12. **Produção** — `/healthz` para monitoramento, Sentry opcional via
+    `SENTRY_DSN`, e migrações que abortam (em vez de mascarar) se falharem.
 
 ## Stack
 

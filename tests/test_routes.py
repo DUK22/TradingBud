@@ -60,3 +60,9 @@ def test_drilldown_apuracao_mes(client, user):
     assert "Day trades" in html and "Vendas de swing" in html
     assert html.count("XPTO3") >= 2          # aparece nas duas tabelas
     assert client.get("/apuracao/2030/1").status_code == 404
+
+
+def test_healthz_sem_login(client):
+    r = client.get("/healthz")
+    assert r.status_code == 200
+    assert r.get_json()["status"] == "ok"

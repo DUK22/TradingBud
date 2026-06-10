@@ -41,3 +41,41 @@ def test_darf_remind_sem_movimento_nao_envia(app, user, monkeypatch):
     res = app.test_cli_runner().invoke(args=["darf-remind", "--month", "2026-05"])
     assert sent == []
     assert "0 enviado(s)" in res.output
+
+
+def test_import_mail_importa_por_remetente(app, user, monkeypatch):
+    """E-mail do usuário com PDF anexo => nota importada; desconhecido ignora."""
+    from datetime import date
+    from decimal import Decimal
+
+    from app.models import BrokerageNote
+    from app.services import mail_import, ocr
+    from app.services.ocr import ParsedNote, ParsedTrade
+
+    monkeypatch.setenv("IMPORT_IMAP_HOST", "imap.test")
+    monkeypatch.setattr(mail_import, "fetch_messages", lambda: [
+        {"sender": "t@t.com", "subject": "Nota", "pdfs": [("nota.pdf", b"%PDF-1.4 x")]},
+        {"sender": "estranho@x.com", "subject": "spam",
+         "pdfs": [("nota.pdf", b"%PDF-1.4 x")]},
+    ])
+    monkeypatch.setattr(ocr, "parse_pdf", lambda path: ParsedNote(
+        broker="BTG", note_number="777", trade_date=date(2026, 6, 1),
+        trades=[ParsedTrade(asset="PETR4", market="VISTA", side="C",
+                            quantity=Decimal("100"), price=Decimal("38"),
+                            gross_value=Decimal("3800"))]))
+
+    res = app.test_cli_runner().invoke(args=["import-mail"])
+    assert "1 importada(s)" in res.output
+    assert "1 remetente(s) desconhecido(s)" in res.output
+    assert BrokerageNote.query.filter_by(user_id=user.id, note_number="777").count() == 1
+
+    # Rodar de novo com o mesmo e-mail: dedupe segura
+    res = app.test_cli_runner().invoke(args=["import-mail"])
+    assert "1 duplicada(s)" in res.output
+    assert BrokerageNote.query.filter_by(user_id=user.id).count() == 1
+
+
+def test_import_mail_desligado_sem_config(app, monkeypatch):
+    monkeypatch.delenv("IMPORT_IMAP_HOST", raising=False)
+    res = app.test_cli_runner().invoke(args=["import-mail"])
+    assert "desligado" in res.output

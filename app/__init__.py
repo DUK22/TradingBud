@@ -19,6 +19,22 @@ log = logging.getLogger(__name__)
 MIGRATIONS_DIR = os.path.join(basedir, "migrations")
 
 
+def _init_sentry():
+    """Liga o Sentry se SENTRY_DSN estiver definido e o SDK instalado."""
+    dsn = os.environ.get("SENTRY_DSN")
+    if not dsn:
+        return
+    try:
+        import sentry_sdk
+        sentry_sdk.init(dsn=dsn, traces_sample_rate=0.0,
+                        send_default_pii=False,
+                        environment=os.environ.get("FLASK_ENV", "development"))
+        log.info("Sentry habilitado.")
+    except ImportError:
+        log.warning("SENTRY_DSN definido mas sentry-sdk não instalado "
+                    "(pip install sentry-sdk).")
+
+
 def _configure_logging():
     """Logging centralizado p/ stdout (LOG_LEVEL configurável). Sob gunicorn,
     os logs da app saem junto com os do servidor — prontos p/ agregadores."""
@@ -84,9 +100,13 @@ def _init_schema(app):
         from flask_migrate import upgrade
         try:
             upgrade()
-        except Exception:  # noqa: BLE001
-            # Fallback p/ não derrubar a app; registra para diagnóstico.
-            log.exception("Falha ao aplicar migrações; usando create_all() de fallback.")
+        except Exception:
+            if app.config.get("ENV_IS_PRODUCTION"):
+                # Em produção, schema inconsistente é pior do que app fora do
+                # ar: NÃO mascarar com create_all() — aborta e loga.
+                log.exception("Falha ao aplicar migrações em produção — abortando.")
+                raise
+            log.exception("Falha ao aplicar migrações; usando create_all() (apenas dev).")
             db.create_all()
 
 
@@ -117,6 +137,20 @@ def create_app(config_class=Config):
 
     # Cabeçalhos de segurança (CSP, X-Frame-Options, HSTS em prod, ...)
     _register_security_headers(app)
+
+    # Observabilidade opcional (Sentry) — só com SENTRY_DSN definido.
+    _init_sentry()
+
+    # Health check p/ load balancer / Render / uptime monitor (sem login).
+    @app.route("/healthz")
+    def healthz():
+        from sqlalchemy import text
+        try:
+            db.session.execute(text("SELECT 1"))
+            return {"status": "ok"}, 200
+        except Exception:  # noqa: BLE001
+            log.exception("healthz: banco indisponível")
+            return {"status": "degraded", "db": "unavailable"}, 503
 
     # User loader
     from .models import User

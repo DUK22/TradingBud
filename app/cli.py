@@ -8,14 +8,14 @@ de cada mês (ex.: dia 1, 09:00). Sem MAIL_SERVER, os e-mails saem no log.
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date
 
 import click
 from flask import Blueprint
 
 from .extensions import db  # noqa: F401  (garante app context com modelos)
 from .models import BrokerageNote, PositionAdjustment, User
-from .services import mailer, tax_engine
+from .services import mail_import, mailer, note_intake, tax_engine
 from .services.darf_pdf import vencimento_darf
 
 cli_bp = Blueprint("cli", __name__, cli_group=None)
@@ -96,3 +96,46 @@ def darf_remind(month_str):
 
     click.echo(f"darf-remind {month:02d}/{year}: {sent} enviado(s), "
                f"{skipped} sem movimento no mês.")
+
+
+@cli_bp.cli.command("import-mail")
+def import_mail():
+    """Importa notas PDF anexadas em e-mails não lidos da caixa IMAP.
+
+    O remetente precisa ser o e-mail de uma conta cadastrada. Agende a cada
+    15-30 min: */15 * * * *  cd /app && flask import-mail
+    """
+    import os
+    from datetime import datetime
+
+    from flask import current_app
+
+    if not mail_import.is_configured():
+        click.echo("IMPORT_IMAP_HOST não configurado — recurso desligado.")
+        return
+
+    messages = mail_import.fetch_messages()
+    ok = dup = err = unknown = 0
+    for m in messages:
+        user = User.query.filter_by(email=m["sender"]).first()
+        if user is None:
+            unknown += 1
+            click.echo(f"ignorado (remetente desconhecido): {m['sender']}")
+            continue
+        for fname, raw in m["pdfs"]:
+            stamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S%f")
+            stored = f"{user.id}_{stamp}_{os.path.basename(fname)}"
+            path = os.path.join(current_app.config["UPLOAD_FOLDER"], stored)
+            with open(path, "wb") as fh:
+                fh.write(raw)
+            status, msg = note_intake.import_pdf(user, path, fname, stored,
+                                                 source="EMAIL")
+            if status != "ok":
+                os.remove(path)
+            click.echo(f"[{user.email}] {status}: {msg}")
+            ok += status == "ok"
+            dup += status == "dup"
+            err += status == "err"
+
+    click.echo(f"import-mail: {ok} importada(s), {dup} duplicada(s), "
+               f"{err} erro(s), {unknown} remetente(s) desconhecido(s).")

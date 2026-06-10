@@ -30,7 +30,7 @@ from .services import (
     darf_pdf,
     fees,
     income_import,
-    ocr,
+    note_intake,
     tax_engine,
 )
 from .services.b3_client import B3Config, sync_status
@@ -47,49 +47,12 @@ def _allowed(filename: str) -> bool:
 
 
 def importar_parsed_note(user, parsed, filename=None, source="OCR") -> BrokerageNote:
-    """Persiste uma ParsedNote (do OCR) como BrokerageNote + Trades."""
-    note = BrokerageNote(
-        user_id=user.id, broker=parsed.broker, note_number=parsed.note_number,
-        trade_date=parsed.trade_date or date.today(),
-        settlement_date=parsed.settlement_date, source=source,
-        corretagem=parsed.corretagem, emolumentos=parsed.emolumentos,
-        taxa_liquidacao=parsed.taxa_liquidacao, taxa_registro=parsed.taxa_registro,
-        iss=parsed.iss, outras=parsed.outras,
-        irrf_day=parsed.irrf_day, irrf_swing=parsed.irrf_swing,
-        net_value=parsed.net_value, filename=filename, raw_text=parsed.raw_text,
-        segment=getattr(parsed, "segment", "BOVESPA"),
-        daytrade_gross=getattr(parsed, "daytrade_gross", 0),
-        normal_gross=getattr(parsed, "normal_gross", 0),
-    )
-    db.session.add(note)
-    db.session.flush()
-    for t in parsed.trades:
-        db.session.add(Trade(
-            user_id=user.id, note_id=note.id, trade_date=note.trade_date,
-            asset=t.asset, market=t.market, side=t.side,
-            quantity=t.quantity, price=t.price, gross_value=t.gross_value,
-        ))
-    db.session.commit()
-    _remove_provisional(user.id, {note.trade_date})   # nota oficial substitui a provisória
-    return note
+    """Persiste uma ParsedNote (delegado ao note_intake — pipeline comum)."""
+    return note_intake.persist_parsed_note(user, parsed, filename=filename, source=source)
 
 
 def _remove_provisional(user_id, dates) -> int:
-    """Remove notas provisórias do usuário nas datas informadas (reconciliação)."""
-    dates = {d for d in dates if d}
-    if not dates:
-        return 0
-    q = BrokerageNote.query.filter(
-        BrokerageNote.user_id == user_id,
-        BrokerageNote.provisional.is_(True),
-        BrokerageNote.trade_date.in_(dates))
-    n = 0
-    for note in q.all():
-        db.session.delete(note)
-        n += 1
-    if n:
-        db.session.commit()
-    return n
+    return note_intake.remove_provisional(user_id, dates)
 
 
 def _user_notes():
@@ -261,31 +224,8 @@ def market_layout():
 # --------------------------------------------------------------------------- #
 # Upload / OCR
 # --------------------------------------------------------------------------- #
-def _is_duplicate_note(parsed) -> bool:
-    """Dedupe: mesma corretora + mesmo número de nota + mesma data do pregão.
-    Sem número de nota, cai para (data, nº de negócios) como heurística fraca —
-    nesse caso só bloqueia se o financeiro bater também."""
-    if parsed.note_number:
-        return db.session.query(BrokerageNote.id).filter_by(
-            user_id=current_user.id, broker=parsed.broker,
-            note_number=parsed.note_number, trade_date=parsed.trade_date,
-        ).first() is not None
-    if not parsed.trade_date:
-        return False
-    same_day = BrokerageNote.query.filter_by(
-        user_id=current_user.id, broker=parsed.broker,
-        trade_date=parsed.trade_date, provisional=False).all()
-    return any(len(n.trades) == len(parsed.trades)
-               and _d_eq(n.net_value, parsed.net_value) for n in same_day)
-
-
-def _d_eq(a, b) -> bool:
-    return Decimal(str(a or 0)) == Decimal(str(b or 0))
-
-
 def _import_one_pdf(file) -> tuple[str, str]:
-    """Salva, valida e importa um PDF. Retorna (status, mensagem) onde status
-    é 'ok' | 'dup' | 'err'."""
+    """Salva, valida e importa um PDF enviado pela tela. (status, mensagem)."""
     fname = secure_filename(file.filename) or "nota.pdf"
     stamped = f"{current_user.id}_{datetime.now(UTC):%Y%m%d%H%M%S%f}_{fname}"
     path = os.path.join(current_app.config["UPLOAD_FOLDER"], stamped)
@@ -298,21 +238,10 @@ def _import_one_pdf(file) -> tuple[str, str]:
         os.remove(path)
         return "err", f"{fname}: não é um PDF válido."
 
-    try:
-        parsed = ocr.parse_pdf(path)
-    except Exception as e:  # noqa: BLE001
-        return "err", f"{fname}: falha ao ler ({e})."
-
-    if _is_duplicate_note(parsed):
+    status, msg = note_intake.import_pdf(current_user, path, fname, stamped)
+    if status != "ok":
         os.remove(path)
-        num = parsed.note_number or "sem número"
-        return "dup", f"{fname}: nota já importada (nº {num})."
-
-    importar_parsed_note(current_user, parsed, filename=stamped, source="OCR")
-    msg = f"{fname}: {len(parsed.trades)} negócio(s)."
-    if parsed.warnings:
-        msg += " Atenção: " + " ".join(parsed.warnings)
-    return "ok", msg
+    return status, msg
 
 
 @main_bp.route("/upload", methods=["GET", "POST"])
