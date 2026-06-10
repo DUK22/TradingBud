@@ -123,3 +123,128 @@ def test_buckets_day_e_swing_nao_se_misturam(user):
     # prejuízo de day trade vira carryforward de day
     assert jan.day_loss_acc == Decimal("500")
     assert jan.day_tax == Decimal("0")
+
+
+# --------------------------------------------------------------------------- #
+# Novas regras: DARF mínimo, IRRF por modalidade, FII/ETF/BDR, descoberto
+# --------------------------------------------------------------------------- #
+def test_darf_abaixo_de_10_acumula_para_o_mes_seguinte(user):
+    """DARF < R$10 não é recolhido: acumula até atingir o mínimo."""
+    # Jan: day trade lucro 30 => imposto 6 (< 10) => darf 0, acumula 6
+    _add(user, date(2026, 1, 7),
+         [("IIII3", "VISTA", "C", 10, 10), ("IIII3", "VISTA", "V", 10, 13)])
+    # Fev: day trade lucro 30 => imposto 6 + 6 acumulado = 12 => darf 12
+    _add(user, date(2026, 2, 4),
+         [("IIII3", "VISTA", "C", 10, 10), ("IIII3", "VISTA", "V", 10, 13)])
+    r = _compute(user)
+    jan, fev = r.month(2026, 1), r.month(2026, 2)
+    assert jan.darf == Decimal("0")
+    assert jan.darf_below_min is True
+    assert fev.darf_carried_in == Decimal("6.00")
+    assert fev.darf == Decimal("12.00")
+    assert fev.darf_below_min is False
+
+
+def test_irrf_day_nao_abate_imposto_de_swing(user):
+    """IRRF de day trade (1%) só compensa imposto de day trade."""
+    # Swing tributável: lucro 6000 (vendas 36k > 20k) => imposto 900
+    _add(user, date(2026, 1, 5), [("JJJJ4", "VISTA", "C", 3000, 10)])
+    _add(user, date(2026, 1, 25), [("JJJJ4", "VISTA", "V", 3000, 12)], irrf_day=50)
+    r = _compute(user)
+    jan = r.month(2026, 1)
+    assert jan.swing_tax == Decimal("900.00")
+    assert jan.irrf_day_used == Decimal("0")     # não há imposto de day p/ abater
+    assert jan.darf == Decimal("900.00")          # IRRF day NÃO abateu o swing
+
+
+def test_irrf_day_credito_acumula_para_mes_seguinte(user):
+    """IRRF de day não usado no mês fica de crédito p/ o day dos meses seguintes."""
+    # Jan: day trade com prejuízo, mas IRRF retido de 20
+    _add(user, date(2026, 1, 8),
+         [("KKKK3", "VISTA", "C", 100, 10), ("KKKK3", "VISTA", "V", 100, 9)], irrf_day=20)
+    # Fev: day trade lucro 1000 => base 1000-100(prej.) = 900 => imposto 180 - 20 = 160
+    _add(user, date(2026, 2, 10),
+         [("KKKK3", "VISTA", "C", 100, 10), ("KKKK3", "VISTA", "V", 100, 20)])
+    r = _compute(user)
+    fev = r.month(2026, 2)
+    assert fev.day_taxable_base == Decimal("900")
+    assert fev.irrf_day_used == Decimal("20")
+    assert fev.darf == Decimal("160.00")
+
+
+def test_fii_20pct_sem_isencao(user):
+    """FII: 20% mesmo com vendas abaixo de 20k (sem isenção)."""
+    _add(user, date(2026, 1, 5), [("HGLG11", "VISTA", "C", 100, 100)])
+    _add(user, date(2026, 1, 20), [("HGLG11", "VISTA", "V", 100, 110)])  # vende 11k, lucro 1k
+    r = _compute(user)
+    jan = r.month(2026, 1)
+    assert jan.fii_result == Decimal("1000")
+    assert jan.exempt_result == Decimal("0")
+    assert jan.fii_tax == Decimal("200.00")      # 20%, sem isenção
+    assert jan.swing_tax == Decimal("0")
+
+
+def test_prejuizo_fii_nao_compensa_acao(user):
+    """Prejuízo de FII fica no bucket de FII; não abate swing de ações."""
+    # Jan: FII com prejuízo -1000
+    _add(user, date(2026, 1, 5), [("MXRF11", "VISTA", "C", 1000, 10)])
+    _add(user, date(2026, 1, 20), [("MXRF11", "VISTA", "V", 1000, 9)])
+    # Fev: ação com lucro 6000 tributável (> 20k)
+    _add(user, date(2026, 2, 5), [("LLLL4", "VISTA", "C", 3000, 10)])
+    _add(user, date(2026, 2, 25), [("LLLL4", "VISTA", "V", 3000, 12)])
+    r = _compute(user)
+    fev = r.month(2026, 2)
+    assert fev.swing_tax == Decimal("900.00")     # cheio: prejuízo de FII não entra
+    assert fev.fii_loss_acc == Decimal("1000")    # segue acumulado no bucket FII
+    assert r.final_fii_loss == Decimal("1000")
+
+
+def test_etf_e_bdr_sem_isencao_20k(user):
+    """ETF e BDR: 15% swing mas SEM a isenção dos 20k."""
+    _add(user, date(2026, 1, 5), [("BOVA11", "VISTA", "C", 50, 100)])
+    _add(user, date(2026, 1, 20), [("BOVA11", "VISTA", "V", 50, 120)])   # vende 6k, lucro 1k
+    _add(user, date(2026, 2, 5), [("AAPL34", "VISTA", "C", 100, 50)])
+    _add(user, date(2026, 2, 20), [("AAPL34", "VISTA", "V", 100, 60)])   # vende 6k, lucro 1k
+    r = _compute(user)
+    jan, fev = r.month(2026, 1), r.month(2026, 2)
+    assert jan.exempt_result == Decimal("0")
+    assert jan.swing_tax == Decimal("150.00")    # ETF tributa mesmo < 20k
+    assert fev.swing_tax == Decimal("150.00")    # BDR idem
+
+
+def test_etf_renda_fixa_fica_fora_da_apuracao(user):
+    """ETF de renda fixa (IR na fonte) sai da apuração, com aviso."""
+    _add(user, date(2026, 1, 5), [("IMAB11", "VISTA", "C", 100, 100)])
+    _add(user, date(2026, 1, 20), [("IMAB11", "VISTA", "V", 100, 110)])
+    r = _compute(user)
+    jan = r.month(2026, 1)
+    assert jan.swing_tax == Decimal("0")
+    assert jan.fii_tax == Decimal("0")
+    assert any("renda fixa" in w for w in r.warnings)
+
+
+def test_venda_a_descoberto_gera_aviso(user):
+    """Vender mais do que a posição => aviso de venda a descoberto."""
+    _add(user, date(2026, 1, 5), [("NNNN3", "VISTA", "C", 100, 10)])
+    _add(user, date(2026, 2, 5), [("NNNN3", "VISTA", "V", 300, 12)])
+    r = _compute(user)
+    assert any("descoberto" in w and "NNNN3" in w for w in r.warnings)
+
+
+def test_eventos_corporativos_split_e_bonificacao(user):
+    """Desdobramento 1->10 e bonificação ajustam qty/PM sem mudar o custo total."""
+    from types import SimpleNamespace
+    _add(user, date(2026, 1, 5), [("OOOO3", "VISTA", "C", 100, 50)])   # custo 5000
+    split = SimpleNamespace(asset="OOOO3", event_date=date(2026, 2, 1),
+                            kind="DESDOBRAMENTO", factor=Decimal("10"),
+                            qty=None, price=None)
+    bonus = SimpleNamespace(asset="OOOO3", event_date=date(2026, 3, 1),
+                            kind="BONIFICACAO", factor=None,
+                            qty=Decimal("100"), price=Decimal("2"))
+    notes = (BrokerageNote.query.filter_by(user_id=user.id)
+             .order_by(BrokerageNote.trade_date).all())
+    r = tax_engine.compute(notes, adjustments=[split, bonus])
+    pos = {p.asset: p for p in r.positions}["OOOO3"]
+    assert pos.qty == Decimal("1100")                       # 100*10 + 100
+    assert pos.total_cost == Decimal("5200")                # 5000 + 100*2
+    assert pos.avg_price == Decimal("5200") / Decimal("1100")

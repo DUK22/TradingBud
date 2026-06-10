@@ -42,6 +42,26 @@ def test_login_e_logout(client):
     assert out.status_code == 200
 
 
+def test_login_next_externo_e_bloqueado(client):
+    """?next= externo (open redirect) é ignorado — vai para o dashboard."""
+    _make_user("n@n.com")
+    for evil in ("https://evil.com/", "//evil.com/x", "http://evil.com"):
+        client.get("/logout", follow_redirects=True)
+        resp = client.post(f"/login?next={evil}",
+                           data={"email": "n@n.com", "password": "password"},
+                           follow_redirects=False)
+        assert resp.status_code == 302
+        assert "evil.com" not in resp.headers["Location"]
+
+
+def test_login_next_interno_funciona(client):
+    _make_user("m@m.com")
+    resp = client.post("/login?next=/apuracao",
+                       data={"email": "m@m.com", "password": "password"},
+                       follow_redirects=False)
+    assert resp.headers["Location"].endswith("/apuracao")
+
+
 def test_rota_protegida_exige_login(client):
     resp = client.get("/", follow_redirects=False)
     assert resp.status_code == 302
@@ -61,3 +81,56 @@ def test_isolamento_entre_usuarios(client):
     _login(client, "intruso@x.com")
     resp = client.get(f"/notas/{nota_id}")
     assert resp.status_code == 404
+
+
+def test_fluxo_reset_de_senha(client, app):
+    """Pede reset, usa o token e entra com a senha nova."""
+    from app.services import tokens
+    u = _make_user("reset@x.com", "senhaantiga")
+
+    # Pedido não revela existência de conta (mensagem neutra, 302 p/ login)
+    r = client.post("/esqueci-senha", data={"email": "reset@x.com"},
+                    follow_redirects=False)
+    assert r.status_code == 302
+
+    token = tokens.generate(u.id, tokens.SALT_RESET)
+    r = client.post(f"/redefinir-senha/{token}",
+                    data={"password": "senhanova123", "confirm": "senhanova123"},
+                    follow_redirects=False)
+    assert r.status_code == 302
+
+    ok = _login(client, "reset@x.com", "senhanova123")
+    assert ok.status_code == 200
+    client.get("/logout", follow_redirects=True)
+    fail = client.post("/login", data={"email": "reset@x.com",
+                                       "password": "senhaantiga"},
+                       follow_redirects=True)
+    assert b"inv" in fail.data.lower()
+
+
+def test_token_de_reset_invalido_e_rejeitado(client):
+    r = client.get("/redefinir-senha/token-invalido", follow_redirects=False)
+    assert r.status_code == 302
+    assert "/esqueci-senha" in r.headers["Location"]
+
+
+def test_verificacao_de_email(client):
+    from app.models import User
+    from app.services import tokens
+    u = _make_user("verif@x.com")
+    assert u.email_verified is False
+    token = tokens.generate(u.id, tokens.SALT_VERIFY)
+    r = client.get(f"/verificar-email/{token}", follow_redirects=False)
+    assert r.status_code == 302
+    assert db.session.get(User, u.id).email_verified is True
+
+
+def test_token_de_verificacao_nao_serve_para_reset(client):
+    """Salts distintos: token de verificação não redefine senha."""
+    from app.services import tokens
+    u = _make_user("cross@x.com")
+    token = tokens.generate(u.id, tokens.SALT_VERIFY)
+    r = client.post(f"/redefinir-senha/{token}",
+                    data={"password": "senhanova123", "confirm": "senhanova123"},
+                    follow_redirects=False)
+    assert "/esqueci-senha" in r.headers["Location"]

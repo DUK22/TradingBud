@@ -95,22 +95,42 @@
   </div>
 </div>
 
-<div class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+<div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
   <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
     <div class="text-[11px] uppercase tracking-wider text-slate-500">Operações</div>
-    <div class="mt-1 text-xl font-semibold tabular-nums">{{ metrics.n_ops }}</div>
+    <div class="mt-1 text-lg font-semibold tabular-nums text-white">{{ metrics.n_ops }}</div>
+    <div class="mt-0.5 text-[11px] tabular-nums text-slate-500">{{ metrics.wins }}G / {{ metrics.n_ops - metrics.wins }}P</div>
   </div>
   <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
     <div class="text-[11px] uppercase tracking-wider text-slate-500">Taxa de acerto</div>
-    <div class="mt-1 text-xl font-semibold tabular-nums {{ 'text-emerald-300' if metrics.win_rate>=50 else 'text-slate-200' }}">{{ metrics.win_rate|pct }}</div>
+    <div class="mt-1 text-lg font-semibold tabular-nums {{ 'text-cyan-300' if metrics.win_rate>=50 else 'text-slate-200' }}">{{ metrics.win_rate|pct }}</div>
+    <div class="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-800"><div class="h-full rounded-full bg-cyan-400" style="width: {{ [metrics.win_rate, 100]|min }}%"></div></div>
+  </div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Fator de lucro</div>
+    <div class="mt-1 text-lg font-semibold tabular-nums {{ 'text-emerald-300' if metrics.profit_factor and metrics.profit_factor>=1 else 'text-red-300' if metrics.profit_factor else 'text-slate-200' }}">{{ '%.2f'|format(metrics.profit_factor) if metrics.profit_factor else '—' }}</div>
+    <div class="mt-0.5 text-[11px] text-slate-500">lucro ÷ perda bruta</div>
+  </div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Expectativa</div>
+    <div class="mt-1 text-lg font-semibold tabular-nums {{ 'text-emerald-300' if metrics.expectancy>=0 else 'text-red-300' }}">{{ metrics.expectancy|brl }}</div>
+    <div class="mt-0.5 text-[11px] text-slate-500">por operação</div>
+  </div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Ganho médio</div>
+    <div class="mt-1 text-lg font-semibold tabular-nums text-emerald-300">{{ metrics.avg_win|brl }}</div>
+  </div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Perda média</div>
+    <div class="mt-1 text-lg font-semibold tabular-nums text-red-300">{{ metrics.avg_loss|brl }}</div>
   </div>
   <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
     <div class="text-[11px] uppercase tracking-wider text-slate-500">Melhor</div>
-    <div class="mt-1 text-xl font-semibold tabular-nums text-emerald-300">{{ metrics.melhor|brl }}</div>
+    <div class="mt-1 text-lg font-semibold tabular-nums text-emerald-300">{{ metrics.melhor|brl }}</div>
   </div>
   <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
     <div class="text-[11px] uppercase tracking-wider text-slate-500">Pior</div>
-    <div class="mt-1 text-xl font-semibold tabular-nums {{ 'text-red-300' if metrics.pior<0 else 'text-slate-200' }}">{{ metrics.pior|brl }}</div>
+    <div class="mt-1 text-lg font-semibold tabular-nums {{ 'text-red-300' if metrics.pior<0 else 'text-slate-200' }}">{{ metrics.pior|brl }}</div>
   </div>
 </div>
 
@@ -153,10 +173,10 @@
   <section class="rounded-lg border border-white/10 bg-slate-900/70 p-4 shadow-sm xl:col-span-2">
     <div class="mb-4 flex items-center justify-between gap-3">
       <div>
-        <h2 class="text-sm font-semibold text-white">Resultado acumulado</h2>
-        <p class="text-xs text-slate-500">Evolução mês a mês</p>
+        <h2 class="text-sm font-semibold text-white">Curva de capital</h2>
+        <p class="text-xs text-slate-500">Resultado acumulado por operação fechada</p>
       </div>
-      <span class="rounded-full border border-white/10 px-2 py-1 text-[11px] text-slate-500">{{ chart.labels|length }} meses</span>
+      <span class="rounded-full border border-white/10 px-2 py-1 text-[11px] tabular-nums text-slate-500">{{ chart.eq|length }} operações</span>
     </div>
     <div class="h-72"><canvas id="chartAcc"></canvas></div>
   </section>
@@ -173,6 +193,47 @@
     {% endif %}
   </section>
 </div>
+
+{% if result.positions %}
+<section class="mt-4 rounded-lg border border-white/10 bg-slate-900/70 p-4 shadow-sm">
+  <div class="mb-3 flex items-center justify-between">
+    <div>
+      <h2 class="text-sm font-semibold text-white">Carteira ao vivo</h2>
+      <p class="text-xs text-slate-500">Posições abertas com cotação em tempo quase-real</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="live-status" class="flex items-center gap-1.5 text-[11px] text-slate-500"><span class="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400"></span>atualizando…</span>
+      <a href="{{ url_for('main.positions') }}" class="text-xs text-cyan-300 hover:text-cyan-200">Ver tudo →</a>
+    </div>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full whitespace-nowrap text-sm tabular-nums">
+      <thead class="text-left text-[11px] uppercase tracking-wider text-slate-500">
+        <tr>
+          <th class="py-2 pr-3">Ativo</th>
+          <th class="py-2 pr-3 text-right">Qtd</th>
+          <th class="py-2 pr-3 text-right">Preço médio</th>
+          <th class="py-2 pr-3 text-right">Atual</th>
+          <th class="py-2 pr-3 text-right">Variação</th>
+          <th class="py-2 text-right">P&L aberto</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-white/5">
+        {% for p in result.positions %}
+        <tr class="live-row" data-asset="{{ p.asset }}" data-avg="{{ p.avg_price }}" data-qty="{{ p.qty }}">
+          <td class="py-2.5 pr-3 font-medium text-white"><a href="{{ url_for('main.market', symbol='BMFBOVESPA:' + p.asset) }}" class="hover:text-cyan-300">{{ p.asset }}</a></td>
+          <td class="py-2.5 pr-3 text-right text-slate-300">{{ p.qty|num(0) }}</td>
+          <td class="py-2.5 pr-3 text-right text-slate-300">{{ p.avg_price|brl }}</td>
+          <td class="py-2.5 pr-3 text-right text-slate-400" data-cell="last">—</td>
+          <td class="py-2.5 pr-3 text-right text-slate-400" data-cell="chg">—</td>
+          <td class="py-2.5 text-right text-slate-400" data-cell="pnl">—</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
 
 <div class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
   <div class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
@@ -325,13 +386,15 @@
     }
   });
 
+  const EQ = (C.eq && C.eq.length > 1) ? C.eq : C.acc;
+  const EQ_LABELS = (C.eq && C.eq.length > 1) ? C.eq_labels : C.labels;
   new Chart(document.getElementById('chartAcc'), {
     type: 'line',
     data: {
-      labels: C.labels,
+      labels: EQ_LABELS,
       datasets: [{
         label: 'Acumulado',
-        data: C.acc,
+        data: EQ,
         borderColor: '#34d399',
         borderWidth: 2.5,
         fill: true,
@@ -404,6 +467,43 @@
   }
   spark('sparkResult', resultSeries, '#34d399', 'rgba(52, 211, 153, 0.22)');
   spark('sparkTax', C.tax, '#fbbf24', 'rgba(251, 191, 36, 0.20)');
+
+  // ---- Carteira ao vivo ----
+  (function () {
+    const rows = Array.from(document.querySelectorAll('.live-row'));
+    if (!rows.length) return;
+    const status = document.getElementById('live-status');
+    const tickers = rows.map(r => r.dataset.asset).join(',');
+
+    async function refresh() {
+      try {
+        const r = await fetch('{{ url_for("main.api_quotes") }}?tickers=' + encodeURIComponent(tickers));
+        const prices = await r.json();
+        rows.forEach(row => {
+          const last = prices[row.dataset.asset];
+          const avg = parseFloat(row.dataset.avg), qty = parseFloat(row.dataset.qty);
+          const tdLast = row.querySelector('[data-cell="last"]');
+          const tdChg = row.querySelector('[data-cell="chg"]');
+          const tdPnl = row.querySelector('[data-cell="pnl"]');
+          if (last == null) { tdLast.textContent = 'indisponível'; return; }
+          const chg = (last - avg) / avg * 100;
+          const pnl = (last - avg) * qty;
+          const cls = pnl >= 0 ? 'text-emerald-300' : 'text-red-300';
+          tdLast.textContent = fmtBRL(last);
+          tdLast.className = 'py-2.5 pr-3 text-right text-slate-200';
+          tdChg.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+          tdChg.className = 'py-2.5 pr-3 text-right ' + cls;
+          tdPnl.textContent = (pnl >= 0 ? '+' : '') + fmtBRL(pnl);
+          tdPnl.className = 'py-2.5 text-right font-semibold ' + cls;
+        });
+        if (status) status.innerHTML = '<span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>ao vivo';
+      } catch (e) {
+        if (status) status.textContent = 'cotações indisponíveis';
+      }
+    }
+    refresh();
+    setInterval(refresh, 60000);
+  })();
 </script>
 {% endif %}
 {% endblock %}

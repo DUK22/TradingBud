@@ -60,3 +60,46 @@ def test_isolamento_entre_usuarios(client, user):
     db.session.commit()
     _login(client)   # entra como t@t.com (user)
     assert client.get(f"/diario/{n.id}").status_code == 404
+
+
+def test_imagem_base64_vira_arquivo_e_rota_autenticada(client, user, app):
+    """Ao salvar, a imagem base64 sai do banco e vira arquivo + rota privada."""
+    import base64 as b64
+    import re
+
+    from app.models import Note
+
+    client.post("/login", data={"email": "t@t.com", "password": "password"})
+    r = client.get("/diario/novo", follow_redirects=False)
+    note_id = int(r.headers["Location"].rstrip("/").rsplit("/", 1)[-1])
+
+    # PNG 1x1 válido
+    png = b64.b64encode(bytes.fromhex(
+        "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
+        "1f15c4890000000d4944415478da63fcffff3f030005fe02fea7568a2d"
+        "0000000049454e44ae426082")).decode()
+    body = f'<p>antes</p><img src="data:image/png;base64,{png}"><p>depois</p>'
+    r = client.post(f"/diario/{note_id}",
+                    json={"title": "t", "body": body, "tags": "", "asset": ""})
+    assert r.status_code == 200
+
+    from app.extensions import db
+    note = db.session.get(Note, note_id)
+    assert "base64" not in note.body            # blob saiu do banco
+    m = re.search(r'src="([^"]*/diario/img/[^"]+)"', note.body)
+    assert m, note.body
+
+    img = client.get(m.group(1))
+    assert img.status_code == 200
+    assert img.data.startswith(b"\x89PNG")
+
+    # outro usuário não enxerga a mesma imagem (diretório por usuário)
+    from app.models import User
+    u2 = User(name="Z", email="z@z.com")
+    u2.set_password("password")
+    db.session.add(u2)
+    db.session.commit()
+    client.get("/logout", follow_redirects=True)
+    client.post("/login", data={"email": "z@z.com", "password": "password"})
+    img2 = client.get(m.group(1))
+    assert img2.status_code == 404

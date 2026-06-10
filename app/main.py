@@ -21,7 +21,7 @@ from flask_login import current_user, login_required, logout_user
 from werkzeug.utils import secure_filename
 
 from .extensions import db
-from .models import B3Connection, BrokerageNote, Note, Trade, User
+from .models import B3Connection, BrokerageNote, Note, PositionAdjustment, Trade, User
 from .services import b3_import, contracts, darf_pdf, fees, ocr, tax_engine
 from .services.b3_client import B3Config, sync_status
 
@@ -89,6 +89,18 @@ def _user_notes():
             .all())
 
 
+def _user_adjustments():
+    return (PositionAdjustment.query
+            .filter_by(user_id=current_user.id)
+            .order_by(PositionAdjustment.event_date.asc())
+            .all())
+
+
+def _compute_user():
+    """Apuração completa do usuário (notas + eventos corporativos)."""
+    return tax_engine.compute(_user_notes(), adjustments=_user_adjustments())
+
+
 # --------------------------------------------------------------------------- #
 # Dashboard
 # --------------------------------------------------------------------------- #
@@ -96,7 +108,7 @@ def _user_notes():
 @login_required
 def dashboard():
     notes = _user_notes()
-    result = tax_engine.compute(notes)
+    result = tax_engine.compute(notes, adjustments=_user_adjustments())
 
     today = date.today()
     cur = result.month(today.year, today.month)
@@ -135,13 +147,34 @@ def dashboard():
               + [s.result for s in result.swing_sales])
     n_ops = len(closed)
     wins = sum(1 for x in closed if x > 0)
+    win_vals = [x for x in closed if x > 0]
+    loss_vals = [x for x in closed if x < 0]
+    gross_profit = sum(win_vals, Decimal("0"))
+    gross_loss = -sum(loss_vals, Decimal("0"))
     metrics = {
         "n_ops": n_ops,
         "wins": wins,
         "win_rate": (Decimal(wins) / n_ops * 100) if n_ops else Decimal("0"),
         "melhor": max(closed) if closed else Decimal("0"),
         "pior": min(closed) if closed else Decimal("0"),
+        "gross_profit": gross_profit,
+        "gross_loss": gross_loss,
+        "profit_factor": (gross_profit / gross_loss) if gross_loss > 0 else None,
+        "avg_win": (gross_profit / len(win_vals)) if win_vals else Decimal("0"),
+        "avg_loss": (gross_loss / len(loss_vals)) if loss_vals else Decimal("0"),
+        "expectancy": (sum(closed, Decimal("0")) / n_ops) if n_ops else Decimal("0"),
     }
+    # Curva de capital por operação fechada (ordem cronológica)
+    ops_sorted = sorted(
+        [(r.trade_date, float(r.net_result)) for r in result.day_results]
+        + [(s.trade_date, float(s.result)) for s in result.swing_sales])
+    eq_acc, eq_series, eq_labels = 0.0, [], []
+    for d, v in ops_sorted:
+        eq_acc += v
+        eq_series.append(round(eq_acc, 2))
+        eq_labels.append(d.strftime("%d/%m/%y"))
+    chart["eq"] = eq_series
+    chart["eq_labels"] = eq_labels
     # Isenção mensal de R$20k (vendas à vista de ações no swing, mês corrente)
     isencao = {
         "usado": cur.equity_swing_gross if cur else Decimal("0"),
@@ -165,14 +198,19 @@ def dashboard():
 def market():
     symbol = (request.args.get("symbol") or "").upper().strip() or "BMFBOVESPA:PETR4"
     # Ativos em carteira viram atalhos rápidos (prefixo da bolsa para o widget).
-    result = tax_engine.compute(_user_notes())
+    result = _compute_user()
     carteira = [("BMFBOVESPA:" + p.asset, p.asset) for p in result.positions]
     favoritos = [
         ("BMFBOVESPA:IBOV", "IBOV"), ("BMFBOVESPA:PETR4", "PETR4"),
         ("BMFBOVESPA:VALE3", "VALE3"), ("BMFBOVESPA:ITUB4", "ITUB4"),
         ("BMFBOVESPA:WIN1!", "WIN (mini índice)"),
         ("BMFBOVESPA:WDO1!", "WDO (mini dólar)"),
+        ("AMEX:EWZ", "EWZ (Brasil em NY)"),
     ]
+    # Tickers conhecidos fora da B3 (digitados sem prefixo de bolsa)
+    _known_us = {"EWZ": "AMEX:EWZ", "QQQ": "NASDAQ:QQQ", "SPY": "AMEX:SPY"}
+    if symbol in _known_us:
+        symbol = _known_us[symbol]
     # Para as calculadoras (valor do ponto) e posição no ativo atual.
     point_values = {k: float(v) for k, v in contracts.POINT_VALUES.items()}
     asset_atual = symbol.split(":")[-1]
@@ -402,7 +440,7 @@ def note_provisional():
 @main_bp.route("/apuracao")
 @login_required
 def apuracao():
-    result = tax_engine.compute(_user_notes())
+    result = _compute_user()
     months = list(reversed(result.months))   # mais recentes primeiro
     return render_template(
         "apuracao.html", months=months, result=result,
@@ -414,7 +452,7 @@ def apuracao():
 @login_required
 def darf_pdf_download(year, month):
     """DARF (demonstrativo) em PDF para o mês informado."""
-    result = tax_engine.compute(_user_notes())
+    result = _compute_user()
     m = result.month(year, month)
     if not m:
         abort(404)
@@ -423,6 +461,75 @@ def darf_pdf_download(year, month):
     resp.headers["Content-Disposition"] = (
         f"inline; filename=darf-{year}-{month:02d}.pdf")
     return resp
+
+
+
+# --------------------------------------------------------------------------- #
+# Eventos corporativos (desdobramento / grupamento / bonificação)
+# --------------------------------------------------------------------------- #
+@main_bp.route("/ajustes", methods=["GET", "POST"])
+@login_required
+def adjustments():
+    if request.method == "POST":
+        asset = (request.form.get("asset") or "").strip().upper()
+        kind = (request.form.get("kind") or "").strip().upper()
+        event_date = None
+        try:
+            event_date = datetime.strptime(
+                request.form.get("event_date", ""), "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+        def dec(name):
+            raw = (request.form.get(name) or "").strip().replace(",", ".")
+            if not raw:
+                return None
+            try:
+                return Decimal(raw)
+            except InvalidOperation:
+                return None
+
+        factor, qty, price = dec("factor"), dec("qty"), dec("price")
+        errors = []
+        if not asset:
+            errors.append("Informe o ativo.")
+        if kind not in PositionAdjustment.KINDS:
+            errors.append("Tipo de evento inválido.")
+        if not event_date:
+            errors.append("Informe a data do evento.")
+        if kind in ("DESDOBRAMENTO", "GRUPAMENTO") and (not factor or factor <= 0):
+            errors.append("Informe o fator (novas por antigas), ex.: 10 ou 0,1.")
+        if kind == "BONIFICACAO" and (not qty or qty <= 0):
+            errors.append("Informe a quantidade de ações recebidas.")
+        if errors:
+            for e in errors:
+                flash(e, "error")
+        else:
+            db.session.add(PositionAdjustment(
+                user_id=current_user.id, asset=asset, event_date=event_date,
+                kind=kind, factor=factor, qty=qty,
+                price=price if price is not None else Decimal("0"),
+                note=(request.form.get("note") or "").strip()[:255]))
+            db.session.commit()
+            flash("Evento registrado. A apuração e as posições já o consideram.", "success")
+            return redirect(url_for("main.adjustments"))
+
+    items = (PositionAdjustment.query.filter_by(user_id=current_user.id)
+             .order_by(PositionAdjustment.event_date.desc()).all())
+    return render_template("adjustments.html", items=items,
+                           kinds=PositionAdjustment.KINDS)
+
+
+@main_bp.route("/ajustes/<int:adj_id>/excluir", methods=["POST"])
+@login_required
+def delete_adjustment(adj_id):
+    adj = db.session.get(PositionAdjustment, adj_id)
+    if not adj or adj.user_id != current_user.id:
+        abort(404)
+    db.session.delete(adj)
+    db.session.commit()
+    flash("Evento removido.", "success")
+    return redirect(url_for("main.adjustments"))
 
 
 # --------------------------------------------------------------------------- #
@@ -493,7 +600,7 @@ def offline():
 @main_bp.route("/posicoes")
 @login_required
 def positions():
-    result = tax_engine.compute(_user_notes())
+    result = _compute_user()
     total = sum((p.market_cost for p in result.positions), Decimal("0"))
     return render_template("positions.html", positions=result.positions, total=total)
 

@@ -11,3 +11,7 @@ _probe.txt
 # Node / build do Tailwind (o CSS gerado app/static/app.css É versionado,
 # para a app rodar sem Node; só as dependências do build ficam de fora)
 node_modules/
+
+# Caches de ferramentas (pytest/ruff)
+.pytest_cache/
+.ruff_cache/

@@ -20,16 +20,22 @@ de prejuízos e alíquotas corretas, e mostra tudo num dashboard.
    líquida das taxas. Day Trade x Swing são **separados automaticamente** por
    `(ativo, dia)`.
 3. **Apuração Mensal** — lucro/prejuízo por mês, **compensação de prejuízos
-   acumulados** (modalidades separadas: prejuízo de day só compensa day, swing
-   só compensa swing), **isenção de R$ 20.000/mês** para vendas à vista de ações
-   no swing, alíquotas **15% (swing)** e **20% (day trade)**, dedução do IRRF
-   retido e **DARF** (código 6015).
+   acumulados** em buckets separados (day / swing / FII), **isenção de
+   R$ 20.000/mês** só para vendas à vista de ações no swing, alíquotas por
+   classe de ativo (**15% swing**, **20% day trade**, **20% FII**; ETF/BDR sem
+   isenção), IRRF compensado por modalidade (1% day x 0,005% "dedo-duro"),
+   regra do **DARF mínimo de R$10** (acumula p/ o mês seguinte) e **DARF**
+   (código 6015). Avisos automáticos: venda a descoberto e ETF de renda fixa.
+   **Eventos corporativos** (desdobramento/grupamento/bonificação) são
+   lançados na tela "Ajustes" e aplicados na data correta.
 4. **Integração B3 (Área do Investidor)** — arquitetura pronta (`B3InvestidorClient`)
    com pontos de extensão `authenticate()` / `get_movements()` e o mapeamento
    `to_trades()` já implementado. Basta ativar quando as credenciais OAuth2
    estiverem disponíveis.
-5. **Multi-usuário (SaaS)** — cadastro/login, senhas com hash, dados isolados por
-   usuário.
+5. **Multi-usuário (SaaS)** — cadastro/login, senhas com hash, dados isolados
+   por usuário, **verificação de e-mail** e **reset de senha** por token
+   (e-mails via SMTP configurável; sem SMTP, o link sai no log — modo dev).
+6. **Cotações** — brapi.dev (com `BRAPI_TOKEN`) com fallback Yahoo Finance.
 
 ## Stack
 
@@ -196,19 +202,18 @@ BTG** — ajustamos as expressões com base no texto extraído (salvo em
 - Relatório anual consolidado para a DIRPF.
 - Ativar OAuth2 da B3 e sincronização automática (cliente já preparado).
 - OCR de notas escaneadas (imagem) via Tesseract.
-- Suporte a FIIs, ETFs, opções e mercado futuro com regras específicas.
+- Regras específicas para opções (exercício) e aluguel de ações (BTC).
 
 Já entregue: DARF em PDF, dashboard com métricas (win rate, melhor/pior),
 sparklines e barra de isenção de R$20k.
 
 ## Acesso rápido
 
-- **Só quero ver a cara:** abra `preview/index.html` no navegador (snapshot
-  estático com os dados de demonstração; não envia formulários).
-- **Quero usar de verdade (1 clique):** `start.bat` (Windows) ou `start.sh`
+- **Quero usar (1 clique):** `start.bat` (Windows) ou `start.sh`
   (macOS/Linux) — cria o ambiente, instala tudo, popula o demo e sobe o servidor.
 - **Manual:** `pip install -r requirements.txt && python seed.py && python run.py`
   e acesse http://127.0.0.1:5000 (login `demo@trader.com` / `demo1234`).
 
 > É uma aplicação web servida por Python (Flask) — não existe um `index.html`
 > para abrir direto; a home é a rota `/` (dashboard) enquanto o servidor roda.
+

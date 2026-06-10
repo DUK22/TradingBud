@@ -82,3 +82,41 @@ def test_excluir_conta_remove_tudo(client, user):
     assert db.session.get(User, uid) is None
     # cascade removeu as notas do usuário
     assert BrokerageNote.query.filter_by(user_id=uid).count() == 0
+
+
+def test_ajustes_crud_e_aplicacao(client, user):
+    """Registra desdobramento via rota e confere que a posição é ajustada."""
+    from datetime import date
+    from decimal import Decimal
+
+    from app.extensions import db
+    from app.models import BrokerageNote, PositionAdjustment, Trade
+    from app.services import tax_engine
+
+    client.post("/login", data={"email": "t@t.com", "password": "password"})
+    note = BrokerageNote(user_id=user.id, broker="T", trade_date=date(2026, 1, 5),
+                         source="MANUAL")
+    db.session.add(note)
+    db.session.flush()
+    db.session.add(Trade(user_id=user.id, note_id=note.id, trade_date=note.trade_date,
+                         asset="MGLU3", market="VISTA", side="C",
+                         quantity=Decimal("100"), price=Decimal("50"),
+                         gross_value=Decimal("5000")))
+    db.session.commit()
+
+    r = client.post("/ajustes", data={
+        "asset": "mglu3", "event_date": "2026-02-01",
+        "kind": "DESDOBRAMENTO", "factor": "10",
+    }, follow_redirects=False)
+    assert r.status_code == 302
+    adj = PositionAdjustment.query.filter_by(user_id=user.id).first()
+    assert adj is not None and adj.asset == "MGLU3"
+
+    result = tax_engine.compute([note], adjustments=[adj])
+    pos = result.positions[0]
+    assert pos.qty == Decimal("1000")
+    assert pos.avg_price == Decimal("5")
+
+    r = client.post(f"/ajustes/{adj.id}/excluir", follow_redirects=False)
+    assert r.status_code == 302
+    assert PositionAdjustment.query.count() == 0

@@ -53,8 +53,8 @@ def _lat1(s: str) -> str:
 def build(user, m) -> bytes:
     """Monta o PDF do DARF para uma MonthlyApuracao `m`. Retorna os bytes."""
     venc = vencimento_darf(m.year, m.month)
-    base = m.day_taxable_base + m.swing_taxable_base
-    irrf = m.irrf_day + m.irrf_swing
+    base = m.day_taxable_base + m.swing_taxable_base + m.fii_taxable_base
+    irrf = m.irrf_day_used + m.irrf_swing_used
 
     pdf = FPDF(format="A4")
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -91,11 +91,15 @@ def build(user, m) -> bytes:
     pdf.ln(1)
     linha("Resultado Day Trade", _brl(m.day_result))
     linha("Resultado Swing Trade", _brl(m.swing_result))
+    if m.fii_result or m.fii_tax:
+        linha("Resultado FIIs (20%)", _brl(m.fii_result))
     linha("Parcela isenta (ações à vista)", _brl(m.exempt_result))
-    linha("Prejuízo compensado", _brl(m.day_loss_used + m.swing_loss_used))
-    linha("Base de cálculo (Day 20% + Swing 15%)", _brl(base))
+    linha("Prejuízo compensado", _brl(m.day_loss_used + m.swing_loss_used + m.fii_loss_used))
+    linha("Base de cálculo (Day 20% / Swing 15% / FII 20%)", _brl(base))
     linha("Imposto apurado", _brl(m.total_tax))
-    linha("(-) IRRF retido na fonte", _brl(irrf))
+    linha("(-) IRRF compensado", _brl(irrf))
+    if m.darf_carried_in:
+        linha("(+) DARF acumulado de meses anteriores", _brl(m.darf_carried_in))
     pdf.ln(2)
     pdf.set_draw_color(210)
     pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())

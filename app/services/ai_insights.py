@@ -180,6 +180,26 @@ def analyze_note(title, tags, asset, body_text, strategy=None, images=None) -> d
     return {"ok": True, "analysis": r["data"]} if r.get("ok") else r
 
 
+def analyze_screenshot(strategy, images, context="") -> dict:
+    """Analisa um print da tela de operação (Profit/home broker) com visão."""
+    if not images:
+        return {"ok": False, "error": "Anexe um print da tela para analisar."}
+    system = BASE_SYSTEM + _strategy_block(strategy) + (
+        "\n\nO trader enviou um PRINT da tela de operação (Profit/home broker). "
+        "Leia o que aparece: ativo, tempo gráfico, preço, candles/indicadores, "
+        "book, posição aberta, ordens e P&L. Avalie a situação à luz da estratégia "
+        "— o setup combina com as regras? stop/alvo/risco coerentes? o que observar "
+        "antes de entrar ou sair? Em 'alertas' aponte riscos do que vê na tela. "
+        "NÃO diga se o ativo vai subir/cair; foque em processo e gestão de risco.")
+    text = "Analise este print da minha tela de operação."
+    if (context or "").strip():
+        text += f"\n\nContexto do trader: {context.strip()[:1500]}"
+    content: list = [{"type": "text", "text": text}]
+    content.extend(images)
+    r = _call_json(system, content, _NOTE_SCHEMA, max_tokens=1200)
+    return {"ok": True, "analysis": r["data"]} if r.get("ok") else r
+
+
 def pre_trade_checklist(strategy, plan_text) -> dict:
     if not (plan_text or "").strip():
         return {"ok": False, "error": "Descreva a operação que pretende fazer."}

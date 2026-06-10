@@ -26,6 +26,7 @@
   </form>
   <p class="text-center text-sm text-slate-500 mt-4">
     Não tem conta? <a href="{{ url_for('auth.register') }}" class="text-brand hover:underline">Cadastre-se</a>
+    · <a href="{{ url_for('auth.forgot_password') }}" class="text-brand hover:underline">Esqueci a senha</a>
   </p>
 </div>
 {% endblock %}

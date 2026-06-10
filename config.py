@@ -80,6 +80,11 @@ class Config:
     # ~0,03% cobre emolumentos + liquidação da B3 de forma aproximada.
     B3_COST_RATE = os.environ.get("B3_COST_RATE", "0.0003")
 
+    # --- Cotações (brapi.dev) — opcional ---
+    # Sem token, o fallback é o Yahoo Finance (não-oficial). Tokens gratuitos
+    # em https://brapi.dev/dashboard
+    BRAPI_TOKEN = os.environ.get("BRAPI_TOKEN")
+
     # --- IA (insights do diário) — opcional ---
     # Sem ANTHROPIC_API_KEY o recurso fica desabilitado (degrada com aviso).
     ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")

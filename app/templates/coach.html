@@ -3,70 +3,255 @@
 {% block content %}
 <div class="mb-6">
   <h1 class="text-2xl font-semibold tracking-tight text-white">Coach</h1>
-  <p class="mt-1 text-sm text-slate-500">Sua estratégia + IA para revisar planos e o diário (apoio educacional, não recomendação).</p>
+  <p class="mt-1 text-sm text-slate-500">Estratégia + IA para revisar prints, planos e o diário (apoio educacional, não recomendação).</p>
 </div>
 
-<div class="grid gap-6 lg:grid-cols-3">
-  <!-- Estratégia -->
-  <div class="lg:col-span-1 rounded-xl border border-white/10 bg-slate-900/70 p-5">
-    <div class="font-medium text-white">Minha estratégia</div>
-    <p class="mt-1 text-xs text-slate-500">Descreva seu setup, regras de entrada/saída, stop, risco:retorno, horários. A IA usa isto como base.</p>
-    <form method="post" action="{{ url_for('journal.coach_strategy') }}" class="mt-3">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <textarea name="strategy" rows="12" placeholder="Ex.: Opero rompimento de máxima/mínima do dia em WINFUT, das 9h30 às 12h. Stop de 150 pts, alvo 1:2..."
-                class="w-full rounded-lg border border-white/10 bg-slate-950 p-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none">{{ strategy }}</textarea>
-      <button class="mt-3 w-full rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">Salvar estratégia</button>
-    </form>
+<!-- Estratégia ativa (selecionável / minimizável) -->
+<div class="rounded-xl border border-white/10 bg-slate-900/70 p-5">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <div class="font-medium text-white">Estratégia ativa</div>
+      <p class="mt-1 text-xs text-slate-500">A IA usa a estratégia selecionada como base em tudo abaixo.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      {% if strategies %}
+      <form method="post" id="select-form" class="contents">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <select onchange="selForm(this.value)"
+                class="rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-emerald-400/60 focus:outline-none">
+          {% for s in strategies %}
+          <option value="{{ s.id }}" {{ 'selected' if active and s.id == active.id }}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+      {% endif %}
+      <button type="button" onclick="newStrategy()"
+              class="rounded-lg border border-emerald-400/40 px-3 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-400/10">+ Nova</button>
+    </div>
   </div>
 
-  <div class="lg:col-span-2 space-y-6">
-    {% if not ai_enabled %}
-    <div class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-200">
-      A IA está desligada. Defina a variável <code>ANTHROPIC_API_KEY</code> no servidor (Render → Environment) para habilitar checklist, chat e resumo.
+  {% if active %}
+  <div id="strat-view" class="mt-3">
+    <div class="whitespace-pre-wrap rounded-lg bg-white/[0.03] p-3 text-sm text-slate-300">{{ active.content or 'Sem descrição ainda. Clique em Editar para preencher.' }}</div>
+    <div class="mt-3 flex gap-2">
+      <button type="button" onclick="editStrategy()"
+              class="rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.04]">✎ Editar</button>
+      <form method="post" action="{{ url_for('journal.coach_strategy_delete', sid=active.id) }}"
+            onsubmit="return confirm('Excluir a estratégia “{{ active.name }}”?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="rounded-lg border border-red-500/30 px-3 py-2 text-sm text-red-300 hover:bg-red-500/10">Excluir</button>
+      </form>
     </div>
-    {% else %}
-    <!-- Checklist pré-trade -->
-    <div class="rounded-xl border border-white/10 bg-slate-900/70 p-5">
-      <div class="font-medium text-white">Checklist pré-trade</div>
-      <p class="mt-1 text-xs text-slate-500">Descreva a operação que pretende fazer; a IA valida contra a sua estratégia.</p>
-      <textarea id="plan" rows="3" placeholder="Ex.: Comprar WINFUT a 130.000, stop 129.850, alvo 130.300, 2 contratos, 10h."
-                class="mt-3 w-full rounded-lg border border-white/10 bg-slate-950 p-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none"></textarea>
-      <button id="btn-check" class="mt-3 rounded-lg border border-emerald-400/40 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-400/10">Validar plano</button>
-      <div id="check-out" class="mt-3 hidden text-sm"></div>
-    </div>
+  </div>
+  {% else %}
+  <p id="strat-empty" class="mt-3 text-sm text-slate-400">Você ainda não cadastrou uma estratégia. Clique em <strong>+ Nova</strong> para criar a primeira.</p>
+  {% endif %}
 
-    <!-- Chat com o diário -->
-    <div class="rounded-xl border border-white/10 bg-slate-900/70 p-5">
-      <div class="font-medium text-white">Chat com o diário</div>
-      <p class="mt-1 text-xs text-slate-500">Pergunte sobre suas anotações: "onde mais erro?", "respeito meu stop?".</p>
-      <div class="mt-3 flex gap-2">
-        <input id="q" placeholder="Sua pergunta…" class="min-w-0 flex-1 rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none">
-        <button id="btn-chat" class="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">Perguntar</button>
-      </div>
-      <div id="chat-out" class="mt-3 hidden whitespace-pre-wrap rounded-lg bg-white/[0.03] p-3 text-sm text-slate-300"></div>
+  <!-- Editor (minimizado por padrão) -->
+  <form method="post" action="{{ url_for('journal.coach_strategy') }}" id="strat-editor" class="mt-4 hidden">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="id" id="strat-id" value="{{ active.id if active else '' }}">
+    <input name="name" id="strat-name" maxlength="120" value="{{ active.name if active else '' }}"
+           placeholder="Nome da estratégia (ex.: Rompimento WIN)"
+           class="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none">
+    <textarea name="content" id="strat-content" rows="10"
+              placeholder="Descreva setup, regras de entrada/saída, stop, risco:retorno, horários…"
+              class="mt-2 w-full rounded-lg border border-white/10 bg-slate-950 p-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none">{{ active.content if active else '' }}</textarea>
+    <div class="mt-3 flex gap-2">
+      <button class="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">Salvar estratégia</button>
+      <button type="button" onclick="cancelEdit()"
+              class="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/[0.04]">Cancelar</button>
     </div>
+  </form>
+</div>
 
-    <!-- Resumo -->
-    <div class="rounded-xl border border-white/10 bg-slate-900/70 p-5">
-      <div class="flex items-center justify-between">
-        <div><div class="font-medium text-white">Resumo dos últimos 14 dias</div>
-        <p class="mt-1 text-xs text-slate-500">Acertos, erros recorrentes e focos para a próxima semana.</p></div>
-        <button id="btn-sum" class="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/[0.04]">Gerar</button>
-      </div>
-      <div id="sum-out" class="mt-3 hidden whitespace-pre-wrap rounded-lg bg-white/[0.03] p-3 text-sm text-slate-300"></div>
+
+{% set o = stats.overall %}
+<div class="mt-6 rounded-xl border border-white/10 bg-slate-900/70 p-5">
+  <div class="flex items-center justify-between">
+    <div>
+      <div class="font-medium text-white">📊 Seus números reais</div>
+      <p class="mt-1 text-xs text-slate-500">Calculado das notas importadas (cada fechamento = 1 operação). Sem IA, sem achismo.</p>
     </div>
-    {% endif %}
+    <span class="rounded-full border border-white/10 px-2 py-1 text-[11px] tabular-nums text-slate-500">{{ o.n_ops }} operações</span>
+  </div>
+
+  {% if o.n_ops == 0 %}
+  <p class="mt-4 text-sm text-slate-500">Importe notas de corretagem para ver suas estatísticas aqui.</p>
+  {% else %}
+  <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+    <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+      <div class="text-[11px] uppercase tracking-wider text-slate-500">Taxa de acerto</div>
+      <div class="mt-1 text-lg font-semibold tabular-nums {{ 'text-cyan-300' if o.win_rate>=50 else 'text-slate-200' }}">{{ o.win_rate|pct }}</div>
+      <div class="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-800"><div class="h-full rounded-full bg-cyan-400" style="width: {{ [o.win_rate, 100]|min }}%"></div></div>
+    </div>
+    <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+      <div class="text-[11px] uppercase tracking-wider text-slate-500">Fator de lucro</div>
+      <div class="mt-1 text-lg font-semibold tabular-nums {{ 'text-emerald-300' if o.profit_factor and o.profit_factor>=1 else 'text-red-300' if o.profit_factor else 'text-slate-200' }}">{{ '%.2f'|format(o.profit_factor) if o.profit_factor else '—' }}</div>
+    </div>
+    <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+      <div class="text-[11px] uppercase tracking-wider text-slate-500">Expectativa</div>
+      <div class="mt-1 text-lg font-semibold tabular-nums {{ 'text-emerald-300' if o.expectancy>=0 else 'text-red-300' }}">{{ o.expectancy|brl }}</div>
+    </div>
+    <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+      <div class="text-[11px] uppercase tracking-wider text-slate-500">Ganho médio</div>
+      <div class="mt-1 text-lg font-semibold tabular-nums text-emerald-300">{{ o.avg_win|brl }}</div>
+    </div>
+    <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+      <div class="text-[11px] uppercase tracking-wider text-slate-500">Perda média</div>
+      <div class="mt-1 text-lg font-semibold tabular-nums text-red-300">{{ o.avg_loss|brl }}</div>
+    </div>
+    <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+      <div class="text-[11px] uppercase tracking-wider text-slate-500">Resultado líquido</div>
+      <div class="mt-1 text-lg font-semibold tabular-nums {{ 'text-emerald-300' if o.net>=0 else 'text-red-300' }}">{{ o.net|brl }}</div>
+    </div>
+  </div>
+
+  <div class="mt-4 grid gap-4 lg:grid-cols-3">
+    <div class="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+      <div class="text-xs font-medium text-slate-300">Por ativo (maior impacto)</div>
+      <table class="mt-2 w-full text-xs tabular-nums">
+        <thead class="text-left text-[10px] uppercase tracking-wider text-slate-600"><tr><th class="py-1">Ativo</th><th class="py-1 text-right">Ops</th><th class="py-1 text-right">Acerto</th><th class="py-1 text-right">Líquido</th></tr></thead>
+        <tbody class="divide-y divide-white/5">
+          {% for b in stats.by_asset %}
+          <tr><td class="py-1.5 font-medium text-slate-200">{{ b.key }}</td><td class="py-1.5 text-right text-slate-400">{{ b.n }}</td><td class="py-1.5 text-right text-slate-400">{{ b.win_rate|pct }}</td><td class="py-1.5 text-right {{ 'text-emerald-300' if b.net>=0 else 'text-red-300' }}">{{ b.net|brl }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+      <div class="text-xs font-medium text-slate-300">Por dia da semana</div>
+      <table class="mt-2 w-full text-xs tabular-nums">
+        <thead class="text-left text-[10px] uppercase tracking-wider text-slate-600"><tr><th class="py-1">Dia</th><th class="py-1 text-right">Ops</th><th class="py-1 text-right">Acerto</th><th class="py-1 text-right">Líquido</th></tr></thead>
+        <tbody class="divide-y divide-white/5">
+          {% for b in stats.by_weekday %}
+          <tr><td class="py-1.5 font-medium text-slate-200">{{ b.label }}</td><td class="py-1.5 text-right text-slate-400">{{ b.n }}</td><td class="py-1.5 text-right text-slate-400">{{ b.win_rate|pct }}</td><td class="py-1.5 text-right {{ 'text-emerald-300' if b.net>=0 else 'text-red-300' }}">{{ b.net|brl }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+      <div class="text-xs font-medium text-slate-300">Day trade × Swing</div>
+      <table class="mt-2 w-full text-xs tabular-nums">
+        <thead class="text-left text-[10px] uppercase tracking-wider text-slate-600"><tr><th class="py-1">Modalidade</th><th class="py-1 text-right">Ops</th><th class="py-1 text-right">Acerto</th><th class="py-1 text-right">Líquido</th></tr></thead>
+        <tbody class="divide-y divide-white/5">
+          {% for b in stats.by_kind %}
+          <tr><td class="py-1.5 font-medium text-slate-200">{{ 'Day trade' if b.key == 'DAY' else 'Swing' }}</td><td class="py-1.5 text-right text-slate-400">{{ b.n }}</td><td class="py-1.5 text-right text-slate-400">{{ b.win_rate|pct }}</td><td class="py-1.5 text-right {{ 'text-emerald-300' if b.net>=0 else 'text-red-300' }}">{{ b.net|brl }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="mt-2 text-[11px] leading-relaxed text-slate-600">Use estes números no chat abaixo — ex.: "por que meu desempenho na sexta é pior?"</p>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% if not ai_enabled %}
+<div class="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-200">
+  A IA está desligada. Defina <code>ANTHROPIC_API_KEY</code> no servidor (Render → Environment) para habilitar análise de print, checklist, chat e resumo.
+</div>
+{% else %}
+
+<!-- Analisar print do Profit (destaque) -->
+<div class="mt-6 rounded-xl border border-emerald-400/30 bg-emerald-400/[0.06] p-5">
+  <div class="font-medium text-white">📸 Analisar print do Profit</div>
+  <p class="mt-1 text-xs text-slate-400">Envie um print da sua tela (gráfico, book, posição) e a IA avalia conforme a estratégia ativa. No celular, dá pra usar a foto da galeria.</p>
+  <label for="shot" class="mt-3 flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-white/15 bg-slate-950/60 px-4 py-6 text-sm text-slate-400 hover:border-emerald-400/40">
+    <span id="shot-label">Toque para escolher um print (PNG/JPG)…</span>
+    <input id="shot" type="file" accept="image/*" class="hidden">
+  </label>
+  <img id="shot-preview" class="mt-3 hidden max-h-72 rounded-lg border border-white/10" alt="prévia">
+  <textarea id="shot-ctx" rows="2" placeholder="Opcional: o que você está pensando / por que entraria…"
+            class="mt-3 w-full rounded-lg border border-white/10 bg-slate-950 p-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none"></textarea>
+  <button id="btn-shot" disabled
+          class="mt-3 w-full rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40">Analisar print</button>
+  <div id="shot-out" class="mt-3 hidden"></div>
+</div>
+
+<div class="mt-6 grid gap-6 lg:grid-cols-2">
+  <!-- Checklist pré-trade com score -->
+  <div class="rounded-xl border border-white/10 bg-slate-900/70 p-5">
+    <div class="flex items-center justify-between">
+      <div class="font-medium text-white">✅ Checklist pré-trade</div>
+      <span id="check-score-badge" class="hidden rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums"></span>
+    </div>
+    <p class="mt-1 text-xs text-slate-500">Descreva a operação; a IA valida cada critério contra a sua estratégia e devolve um score.</p>
+    <textarea id="plan" rows="3" placeholder="Ex.: Comprar WINFUT a 130.000, stop 129.850, alvo 130.300, 2 contratos, 10h."
+              class="mt-3 w-full rounded-lg border border-white/10 bg-slate-950 p-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-cyan-400/60 focus:outline-none"></textarea>
+    <button id="btn-check" class="mt-3 w-full rounded-lg border border-cyan-400/40 px-4 py-2 text-sm font-medium text-cyan-300 hover:bg-cyan-400/10">Validar plano</button>
+    <div id="check-bar-wrap" class="mt-3 hidden">
+      <div class="flex items-center justify-between text-[11px] text-slate-500"><span>aderência à estratégia</span><span id="check-pct" class="tabular-nums"></span></div>
+      <div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-800"><div id="check-bar" class="h-full rounded-full transition-all duration-500" style="width:0%"></div></div>
+    </div>
+    <div id="check-out" class="mt-3 hidden text-sm"></div>
+  </div>
+
+  <!-- Chat com o diário (bolhas) -->
+  <div class="flex flex-col rounded-xl border border-white/10 bg-slate-900/70 p-5">
+    <div class="flex items-center justify-between">
+      <div class="font-medium text-white">💬 Chat com o diário</div>
+      <button id="btn-chat-clear" class="text-[11px] text-slate-500 hover:text-slate-300">limpar conversa</button>
+    </div>
+    <p class="mt-1 text-xs text-slate-500">A IA responde com base nas suas anotações e na estratégia ativa.</p>
+    <div id="chat-box" class="mt-3 flex max-h-80 min-h-[10rem] flex-1 flex-col gap-2 overflow-y-auto rounded-lg bg-slate-950/60 p-3">
+      <div class="self-start rounded-xl rounded-bl-sm bg-white/[0.05] px-3 py-2 text-xs text-slate-400">Pergunte algo como: "onde mais erro?", "estou respeitando meu stop?", "qual padrão se repete nas minhas perdas?"</div>
+    </div>
+    <div class="mt-3 flex gap-2">
+      <input id="q" placeholder="Sua pergunta…" autocomplete="off"
+             class="min-w-0 flex-1 rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-cyan-400/60 focus:outline-none">
+      <button id="btn-chat" class="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300">➤</button>
+    </div>
   </div>
 </div>
+
+<!-- Painel de disciplina -->
+<div class="mt-6 rounded-xl border border-cyan-400/20 bg-cyan-400/[0.04] p-5">
+  <div class="flex items-center justify-between">
+    <div><div class="font-medium text-white">🧭 Painel de disciplina</div>
+    <p class="mt-1 text-xs text-slate-500">A IA cruza os últimos 14 dias do diário com a estratégia: acertos, erros recorrentes e focos da semana.</p></div>
+    <button id="btn-sum" class="rounded-lg border border-cyan-400/40 px-4 py-2 text-sm font-medium text-cyan-300 hover:bg-cyan-400/10">Gerar análise</button>
+  </div>
+  <div id="sum-meta" class="mt-2 hidden text-[11px] text-slate-500"></div>
+  <div id="sum-out" class="mt-3 hidden whitespace-pre-wrap rounded-lg bg-slate-950/50 p-4 text-sm leading-relaxed text-slate-300"></div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
-{% if ai_enabled %}
 <script>
   const CSRF = {{ csrf_token()|tojson }};
   const $ = id => document.getElementById(id);
   const esc = s => { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
-  async function post(url, body) {
+
+  // ---- Estratégia (selecionar / editar / nova) ----
+  function selForm(id) {
+    const f = $('select-form');
+    f.action = "{{ url_for('journal.coach_strategy_select', sid=0) }}".replace('/0/', '/' + id + '/');
+    f.submit();
+  }
+  function editStrategy() {
+    if ($('strat-view')) $('strat-view').classList.add('hidden');
+    $('strat-editor').classList.remove('hidden');
+    $('strat-name').focus();
+  }
+  function newStrategy() {
+    $('strat-id').value = '';
+    $('strat-name').value = '';
+    $('strat-content').value = '';
+    if ($('strat-view')) $('strat-view').classList.add('hidden');
+    if ($('strat-empty')) $('strat-empty').classList.add('hidden');
+    $('strat-editor').classList.remove('hidden');
+    $('strat-name').focus();
+  }
+  function cancelEdit() {
+    $('strat-editor').classList.add('hidden');
+    if ($('strat-view')) $('strat-view').classList.remove('hidden');
+    if ($('strat-empty')) $('strat-empty').classList.remove('hidden');
+  }
+</script>
+{% if ai_enabled %}
+<script>
+  async function postJSON(url, body) {
     const r = await fetch(url, { method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
       body: JSON.stringify(body || {}) });
@@ -74,36 +259,140 @@
   }
   function busy(btn, on, label) { btn.disabled = on; if (on) { btn.dataset.t = btn.textContent; btn.textContent = label; } else { btn.textContent = btn.dataset.t; } }
 
-  // Checklist
+  // Renderiza resultado padrão (resumo/pontos_fortes/alertas/dica)
+  function renderAnalysis(a) {
+    const li = (arr, cls) => (arr || []).map(x => `<li class="${cls}">${esc(x)}</li>`).join('');
+    let html = '';
+    if (a.resumo) html += `<div class="rounded-lg bg-white/[0.03] p-3 text-slate-300">${esc(a.resumo)}</div>`;
+    if ((a.pontos_fortes || []).length) html += `<div class="mt-2"><div class="text-xs font-medium text-emerald-300">Pontos fortes</div><ul class="ml-4 list-disc text-slate-300">${li(a.pontos_fortes)}</ul></div>`;
+    if ((a.alertas || []).length) html += `<div class="mt-2"><div class="text-xs font-medium text-amber-300">Alertas</div><ul class="ml-4 list-disc text-amber-200">${li(a.alertas)}</ul></div>`;
+    if (a.dica) html += `<div class="mt-2 rounded-lg bg-emerald-400/10 px-3 py-2 text-emerald-300"><strong>Dica:</strong> ${esc(a.dica)}</div>`;
+    return html;
+  }
+
+  // ---- Analisar print ----
+  const shot = $('shot');
+  if (shot) {
+    let file = null;
+    shot.addEventListener('change', () => {
+      file = shot.files[0] || null;
+      $('btn-shot').disabled = !file;
+      if (file) {
+        $('shot-label').textContent = file.name;
+        const img = $('shot-preview'); img.src = URL.createObjectURL(file); img.classList.remove('hidden');
+      }
+    });
+    $('btn-shot').addEventListener('click', async () => {
+      if (!file) return;
+      const out = $('shot-out'); out.classList.remove('hidden'); out.innerHTML = 'Analisando o print…';
+      busy($('btn-shot'), true, 'Analisando…');
+      const fd = new FormData();
+      fd.append('imagem', file);
+      fd.append('contexto', $('shot-ctx').value);
+      try {
+        const r = await fetch("{{ url_for('journal.coach_analyze_image') }}",
+          { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: fd });
+        const d = await r.json();
+        out.innerHTML = d.ok ? renderAnalysis(d.analysis) : `<span class="text-red-300">${esc(d.error)}</span>`;
+      } catch (e) { out.innerHTML = '<span class="text-red-300">Falha de conexão.</span>'; }
+      busy($('btn-shot'), false);
+    });
+  }
+
+  // ---- Checklist com score ----
   $('btn-check').addEventListener('click', async () => {
     const out = $('check-out'); out.classList.remove('hidden'); out.innerHTML = 'Validando…';
     busy($('btn-check'), true, 'Validando…');
-    const d = await post("{{ url_for('journal.coach_checklist') }}", { plan: $('plan').value });
+    const d = await postJSON("{{ url_for('journal.coach_checklist') }}", { plan: $('plan').value });
     busy($('btn-check'), false);
     if (!d.ok) { out.innerHTML = `<span class="text-red-300">${esc(d.error)}</span>`; return; }
     const a = d.analysis;
-    out.innerHTML = (a.itens || []).map(i =>
-      `<div class="flex gap-2 py-1"><span>${i.atende ? '✅' : '⚠️'}</span><span><strong>${esc(i.criterio)}:</strong> ${esc(i.comentario)}</span></div>`
-    ).join('') + `<div class="mt-2 rounded-lg bg-emerald-400/10 px-3 py-2 text-emerald-300">${esc(a.veredito)}</div>`;
+    const itens = a.itens || [];
+    const oks = itens.filter(i => i.atende).length;
+    const score = itens.length ? Math.round(oks / itens.length * 100) : 0;
+    const tone = score >= 80 ? ['bg-emerald-400', 'bg-emerald-400/15 text-emerald-300', 'APROVADO']
+               : score >= 50 ? ['bg-amber-400', 'bg-amber-400/15 text-amber-300', 'ATENÇÃO']
+               : ['bg-red-400', 'bg-red-400/15 text-red-300', 'REPROVADO'];
+    const badge = $('check-score-badge');
+    badge.className = 'rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ' + tone[1];
+    badge.textContent = tone[2] + ' · ' + score + '%';
+    $('check-bar-wrap').classList.remove('hidden');
+    $('check-pct').textContent = oks + '/' + itens.length + ' critérios';
+    const bar = $('check-bar'); bar.className = 'h-full rounded-full transition-all duration-500 ' + tone[0];
+    bar.style.width = score + '%';
+    out.innerHTML = itens.map(i =>
+      `<div class="flex gap-2 border-b border-white/5 py-1.5"><span>${i.atende ? '✅' : '⚠️'}</span><span><strong class="text-slate-200">${esc(i.criterio)}:</strong> <span class="text-slate-400">${esc(i.comentario)}</span></span></div>`
+    ).join('') + `<div class="mt-2 rounded-lg ${tone[1]} px-3 py-2">${esc(a.veredito)}</div>`;
   });
 
-  // Chat
-  $('btn-chat').addEventListener('click', async () => {
-    const out = $('chat-out'); out.classList.remove('hidden'); out.textContent = 'Pensando…';
+  // ---- Chat em bolhas (histórico local no navegador) ----
+  const CHAT_KEY = 'coach_chat_v1';
+  const box = $('chat-box');
+  function bubble(role, text, pending) {
+    const div = document.createElement('div');
+    div.className = role === 'user'
+      ? 'self-end max-w-[85%] whitespace-pre-wrap rounded-xl rounded-br-sm bg-cyan-400/15 px-3 py-2 text-sm text-cyan-100'
+      : 'self-start max-w-[85%] whitespace-pre-wrap rounded-xl rounded-bl-sm bg-white/[0.05] px-3 py-2 text-sm text-slate-300';
+    div.textContent = text;
+    if (pending) div.classList.add('animate-pulse');
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+    return div;
+  }
+  function loadChat() {
+    try { return JSON.parse(localStorage.getItem(CHAT_KEY)) || []; } catch (e) { return []; }
+  }
+  function saveChat(h) {
+    try { localStorage.setItem(CHAT_KEY, JSON.stringify(h.slice(-30))); } catch (e) {}
+  }
+  let history = loadChat();
+  history.forEach(m => bubble(m.role, m.text));
+
+  async function sendChat() {
+    const q = $('q').value.trim();
+    if (!q) return;
+    $('q').value = '';
+    bubble('user', q);
+    history.push({ role: 'user', text: q }); saveChat(history);
+    const wait = bubble('ai', 'Pensando…', true);
     busy($('btn-chat'), true, '…');
-    const d = await post("{{ url_for('journal.coach_chat') }}", { question: $('q').value });
+    const d = await postJSON("{{ url_for('journal.coach_chat') }}", { question: q });
     busy($('btn-chat'), false);
-    out.textContent = d.ok ? d.text : (d.error || 'Erro.');
+    wait.classList.remove('animate-pulse');
+    wait.textContent = d.ok ? d.text : (d.error || 'Erro.');
+    history.push({ role: 'ai', text: wait.textContent }); saveChat(history);
+    box.scrollTop = box.scrollHeight;
+  }
+  $('btn-chat').addEventListener('click', sendChat);
+  $('q').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+  $('btn-chat-clear').addEventListener('click', () => {
+    history = []; saveChat(history);
+    box.innerHTML = '<div class="self-start rounded-xl rounded-bl-sm bg-white/[0.05] px-3 py-2 text-xs text-slate-400">Conversa limpa. Pergunte algo novo.</div>';
   });
-  $('q').addEventListener('keydown', e => { if (e.key === 'Enter') $('btn-chat').click(); });
 
-  // Resumo
+  // ---- Painel de disciplina (persiste a última análise no navegador) ----
+  const SUM_KEY = 'coach_discipline_v1';
+  (function restoreSum() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(SUM_KEY));
+      if (saved && saved.text) {
+        $('sum-out').classList.remove('hidden'); $('sum-out').textContent = saved.text;
+        $('sum-meta').classList.remove('hidden');
+        $('sum-meta').textContent = 'Última análise: ' + new Date(saved.at).toLocaleString('pt-BR');
+      }
+    } catch (e) {}
+  })();
   $('btn-sum').addEventListener('click', async () => {
     const out = $('sum-out'); out.classList.remove('hidden'); out.textContent = 'Gerando…';
     busy($('btn-sum'), true, 'Gerando…');
-    const d = await post("{{ url_for('journal.coach_summary') }}", {});
+    const d = await postJSON("{{ url_for('journal.coach_summary') }}", {});
     busy($('btn-sum'), false);
     out.textContent = d.ok ? d.text : (d.error || 'Erro.');
+    if (d.ok) {
+      try { localStorage.setItem(SUM_KEY, JSON.stringify({ text: d.text, at: Date.now() })); } catch (e) {}
+      $('sum-meta').classList.remove('hidden');
+      $('sum-meta').textContent = 'Última análise: ' + new Date().toLocaleString('pt-BR');
+    }
   });
 </script>
 {% endif %}

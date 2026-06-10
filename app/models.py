@@ -35,6 +35,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     cpf = db.Column(EncryptedString())  # criptografado em repouso (LGPD)
+    email_verified = db.Column(db.Boolean, default=False, nullable=False)
     layout_mercado = db.Column(db.Text)  # JSON do layout da página Mercado
     strategy = db.Column(db.Text)        # legado: estratégia única (migrada p/ StrategyProfile)
     active_strategy_id = db.Column(db.Integer)  # id da StrategyProfile selecionada
@@ -55,6 +56,9 @@ class User(UserMixin, db.Model):
     strategies = db.relationship(
         "StrategyProfile", backref="user", lazy=True, cascade="all, delete-orphan",
         foreign_keys="StrategyProfile.user_id",
+    )
+    adjustments = db.relationship(
+        "PositionAdjustment", backref="user", lazy=True, cascade="all, delete-orphan"
     )
 
     def set_password(self, raw: str):
@@ -185,3 +189,28 @@ class StrategyProfile(db.Model):
     content = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+
+
+class PositionAdjustment(db.Model):
+    """Evento corporativo lançado manualmente pelo usuário (desdobramento,
+    grupamento ou bonificação). Aplicado pelo tax_engine na data informada,
+    ANTES dos negócios daquele dia.
+
+    - DESDOBRAMENTO: factor = novas por antiga (ex.: 1->10 => factor 10).
+    - GRUPAMENTO:    factor = novas por antigas (ex.: 10->1 => factor 0.1).
+    - BONIFICACAO:   qty ações recebidas ao custo unitário price (pode ser 0)."""
+
+    __tablename__ = "position_adjustments"
+
+    KINDS = ("DESDOBRAMENTO", "GRUPAMENTO", "BONIFICACAO")
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    asset = db.Column(db.String(20), nullable=False, index=True)
+    event_date = db.Column(db.Date, nullable=False)
+    kind = db.Column(db.String(20), nullable=False)
+    factor = db.Column(NUM)          # desdobramento/grupamento
+    qty = db.Column(NUM)             # bonificação
+    price = db.Column(NUM)           # bonificação: custo unitário atribuído
+    note = db.Column(db.String(255), default="")
+    created_at = db.Column(db.DateTime, default=utcnow)

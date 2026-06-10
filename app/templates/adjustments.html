@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Eventos corporativos · IR Traders{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-semibold tracking-tight text-white">Eventos corporativos</h1>
+  <p class="mt-1 max-w-3xl text-sm text-slate-500">
+    Desdobramentos, grupamentos e bonificações ajustam a quantidade e o preço médio
+    da posição na data do evento — sem isso, o cálculo do IR fica errado.
+    O ajuste é aplicado antes dos negócios do dia informado.
+  </p>
+</div>
+
+<div class="grid gap-6 lg:grid-cols-5">
+  <div class="lg:col-span-2">
+    <form method="post" class="space-y-4 rounded-xl border border-white/10 bg-slate-900/70 p-5 shadow-sm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div>
+        <label class="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">Ativo</label>
+        <input name="asset" required placeholder="Ex.: MGLU3"
+               class="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-emerald-400/50 focus:outline-none">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">Data do evento</label>
+          <input type="date" name="event_date" required
+                 class="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-emerald-400/50 focus:outline-none">
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">Tipo</label>
+          <select name="kind" id="adj-kind"
+                  class="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-emerald-400/50 focus:outline-none">
+            {% for k in kinds %}<option value="{{ k }}">{{ k.title() }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div data-for="factor">
+        <label class="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">Fator (novas por antigas)</label>
+        <input name="factor" inputmode="decimal" placeholder="Ex.: 10 (1→10) ou 0,1 (10→1)"
+               class="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-emerald-400/50 focus:outline-none">
+      </div>
+      <div data-for="bonus" class="hidden grid-cols-2 gap-3">
+        <div>
+          <label class="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">Qtd recebida</label>
+          <input name="qty" inputmode="decimal" placeholder="Ex.: 100"
+                 class="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-emerald-400/50 focus:outline-none">
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">Custo unitário (R$)</label>
+          <input name="price" inputmode="decimal" placeholder="Ex.: 12,34 (ou 0)"
+                 class="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-emerald-400/50 focus:outline-none">
+        </div>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">Observação (opcional)</label>
+        <input name="note" maxlength="255"
+               class="w-full rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-emerald-400/50 focus:outline-none">
+      </div>
+      <button class="w-full rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-emerald-950 hover:bg-emerald-400">
+        Registrar evento
+      </button>
+    </form>
+    <script>
+      (function () {
+        var kind = document.getElementById("adj-kind");
+        var factor = document.querySelector('[data-for="factor"]');
+        var bonus = document.querySelector('[data-for="bonus"]');
+        function sync() {
+          var isBonus = kind.value === "BONIFICACAO";
+          factor.classList.toggle("hidden", isBonus);
+          bonus.classList.toggle("hidden", !isBonus);
+          bonus.classList.toggle("grid", isBonus);
+        }
+        kind.addEventListener("change", sync);
+        sync();
+      })();
+    </script>
+  </div>
+
+  <div class="lg:col-span-3">
+    {% if not items %}
+    <div class="rounded-lg border border-dashed border-white/10 bg-slate-900/50 p-8 text-center text-sm text-slate-500">
+      Nenhum evento registrado.
+    </div>
+    {% else %}
+    <div class="overflow-x-auto rounded-xl border border-white/10 bg-slate-900/70 shadow-sm">
+      <table class="w-full whitespace-nowrap text-sm tabular-nums">
+        <thead class="border-b border-white/10 bg-white/[0.03] text-left text-xs uppercase tracking-wider text-slate-500">
+          <tr>
+            <th class="px-4 py-3">Data</th>
+            <th class="px-4 py-3">Ativo</th>
+            <th class="px-4 py-3">Tipo</th>
+            <th class="px-4 py-3 text-right">Fator / Qtd</th>
+            <th class="px-4 py-3">Obs.</th>
+            <th class="px-4 py-3 text-right"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/10">
+          {% for a in items %}
+          <tr class="hover:bg-white/[0.03]">
+            <td class="px-4 py-3 text-slate-300">{{ a.event_date.strftime("%d/%m/%Y") }}</td>
+            <td class="px-4 py-3 font-medium text-white">{{ a.asset }}</td>
+            <td class="px-4 py-3 text-slate-300">{{ a.kind.title() }}</td>
+            <td class="px-4 py-3 text-right text-slate-300">
+              {% if a.kind == "BONIFICACAO" %}
+                {{ a.qty|num }} ações @ {{ a.price|brl }}
+              {% else %}
+                × {{ a.factor|num }}
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 max-w-[16rem] truncate text-slate-500">{{ a.note }}</td>
+            <td class="px-4 py-3 text-right">
+              <form method="post" action="{{ url_for('main.delete_adjustment', adj_id=a.id) }}"
+                    onsubmit="return confirm('Remover este evento?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="text-xs text-red-300 hover:text-red-200">Excluir</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
