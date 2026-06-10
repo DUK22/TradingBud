@@ -10,6 +10,24 @@ de prejuízos e alíquotas corretas, e mostra tudo num dashboard.
 
 ---
 
+## Deploy em produção (checklist)
+
+1. **Variáveis obrigatórias**: `FLASK_ENV=production`, `SECRET_KEY`,
+   `CPF_ENC_KEY` (a app aborta sem elas).
+2. **Banco**: defina `DATABASE_URL` com PostgreSQL
+   (`postgresql+psycopg2://...`). SQLite é só para dev/uso pessoal.
+3. **E-mail**: configure `MAIL_*` (verificação de conta, reset de senha e
+   lembrete de DARF dependem disso).
+4. **Rate limit**: `RATELIMIT_STORAGE_URI=redis://...` com múltiplos workers.
+5. **Tarefas agendadas (cron / Render Cron Job)**:
+   - `flask darf-remind` — dia 1 de cada mês (lembrete de DARF por e-mail);
+   - `flask import-mail` — a cada 15 min (importa notas encaminhadas por e-mail);
+   - `flask backup-db` — diário (retenção configurável com `--keep`).
+6. **Monitoramento**: aponte o uptime monitor para `/healthz`; defina
+   `SENTRY_DSN` para receber erros.
+7. **Migrações**: aplicadas no boot; em produção, falha de migração **aborta**
+   o start (proposital — não suba com schema inconsistente).
+
 ## Funcionalidades
 
 1. **OCR de Nota de Corretagem** — upload de PDF (padrão SINACOR / BTG). Extrai

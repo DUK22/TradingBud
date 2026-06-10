@@ -1,8 +1,9 @@
-"""Testes do layout salvo na conta (página Mercado)."""
-import json
+"""Testes da página Mercado (layout fixo, símbolos e posição)."""
+from datetime import date
+from decimal import Decimal
 
 from app.extensions import db
-from app.models import User
+from app.models import BrokerageNote, Trade
 
 
 def _login(client, email="t@t.com", password="password"):
@@ -10,30 +11,36 @@ def _login(client, email="t@t.com", password="password"):
                        follow_redirects=True)
 
 
-def test_salva_layout_na_conta(client, user):
-    _login(client)
-    layout = [{"id": "chart", "type": "chart", "x": 0, "y": 0, "w": 8, "h": 8}]
-    r = client.post("/mercado/layout", json=layout)
-    assert r.status_code == 200 and r.get_json()["ok"] is True
-    db.session.expire(user)
-    saved = json.loads(db.session.get(User, user.id).layout_mercado)
-    assert saved[0]["type"] == "chart" and saved[0]["w"] == 8
-
-
-def test_layout_invalido_400(client, user):
-    _login(client)
-    r = client.post("/mercado/layout", json={"nao": "e lista"})
-    assert r.status_code == 400
-
-
-def test_mercado_carrega_layout_salvo(client, user):
-    user.layout_mercado = json.dumps([{"id": "news", "type": "news", "x": 0, "y": 0, "w": 6, "h": 6}])
-    db.session.commit()
+def test_mercado_renderiza_widgets_fixos(client, user):
     _login(client)
     h = client.get("/mercado").get_data(as_text=True)
-    assert '"type": "news"' in h        # injetado em const SAVED
+    for piece in ("tv-chart", "tv-tech", "tv-calendar", "tv-news",
+                  "Calculadoras do trader", "BMFBOVESPA:PETR4"):
+        assert piece in h
 
 
-def test_layout_exige_login(client):
-    r = client.post("/mercado/layout", json=[], follow_redirects=False)
-    assert r.status_code in (302, 401)
+def test_mercado_resolve_ticker_americano(client, user):
+    _login(client)
+    h = client.get("/mercado?symbol=EWZ").get_data(as_text=True)
+    assert "AMEX:EWZ" in h
+
+
+def test_mercado_mostra_posicao_do_ativo(client, user):
+    n = BrokerageNote(user_id=user.id, broker="T", trade_date=date(2026, 5, 5),
+                      source="MANUAL")
+    db.session.add(n)
+    db.session.flush()
+    db.session.add(Trade(user_id=user.id, note_id=n.id, trade_date=n.trade_date,
+                         asset="PETR4", market="VISTA", side="C",
+                         quantity=Decimal("100"), price=Decimal("38"),
+                         gross_value=Decimal("3800")))
+    db.session.commit()
+    _login(client)
+    h = client.get("/mercado?symbol=BMFBOVESPA:PETR4").get_data(as_text=True)
+    assert "Sua posição em PETR4" in h
+    assert "pos-panel" in h
+
+
+def test_mercado_exige_login(client):
+    r = client.get("/mercado", follow_redirects=False)
+    assert r.status_code == 302

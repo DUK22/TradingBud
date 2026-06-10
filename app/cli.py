@@ -139,3 +139,70 @@ def import_mail():
 
     click.echo(f"import-mail: {ok} importada(s), {dup} duplicada(s), "
                f"{err} erro(s), {unknown} remetente(s) desconhecido(s).")
+
+
+@cli_bp.cli.command("backup-db")
+@click.option("--out", "out_dir", default=None,
+              help="Diretório de destino (padrão: instance/backups).")
+@click.option("--keep", default=14, show_default=True,
+              help="Quantos backups manter (os mais antigos são apagados).")
+def backup_db(out_dir, keep):
+    """Faz backup do banco. SQLite: cópia consistente via API de backup.
+    PostgreSQL: usa pg_dump se disponível. Agende diariamente:
+        0 3 * * *  cd /app && flask backup-db
+    """
+    import os
+    import sqlite3
+    import subprocess
+    from datetime import datetime
+
+    from flask import current_app
+
+    uri = current_app.config["SQLALCHEMY_DATABASE_URI"]
+    out_dir = out_dir or os.path.join(current_app.instance_path, "backups")
+    os.makedirs(out_dir, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+
+    if uri.startswith("sqlite:///"):
+        src_path = uri.replace("sqlite:///", "", 1)
+        if not os.path.exists(src_path):
+            click.echo(f"Banco não encontrado: {src_path}")
+            raise SystemExit(1)
+        dest = os.path.join(out_dir, f"ir_traders-{stamp}.db")
+        src = sqlite3.connect(src_path)
+        dst = sqlite3.connect(dest)
+        with dst:
+            src.backup(dst)          # cópia consistente mesmo com app no ar
+        src.close()
+        dst.close()
+        click.echo(f"Backup SQLite criado: {dest}")
+        prefix, suffix = "ir_traders-", ".db"
+    elif uri.startswith(("postgresql://", "postgresql+")):
+        dest = os.path.join(out_dir, f"ir_traders-{stamp}.sql.gz")
+        # pg_dump aceita URI "postgresql://"; remove o sufixo do driver SQLAlchemy
+        pg_uri = "postgresql://" + uri.split("://", 1)[1]
+        try:
+            with open(dest, "wb") as fh:
+                dump = subprocess.Popen(["pg_dump", "--no-owner", pg_uri],
+                                        stdout=subprocess.PIPE)
+                gzip_p = subprocess.Popen(["gzip"], stdin=dump.stdout, stdout=fh)
+                dump.stdout.close()
+                gzip_p.communicate()
+            if gzip_p.returncode != 0 or dump.wait() != 0:
+                raise RuntimeError("pg_dump/gzip retornou erro")
+        except (FileNotFoundError, RuntimeError) as e:
+            click.echo(f"Falha no pg_dump ({e}). Instale postgresql-client ou use "
+                       "o backup gerenciado do provedor (Render/Heroku têm).")
+            raise SystemExit(1) from e
+        click.echo(f"Backup PostgreSQL criado: {dest}")
+        prefix, suffix = "ir_traders-", ".sql.gz"
+    else:
+        click.echo(f"Backup automático não suportado para: {uri.split(':', 1)[0]}")
+        raise SystemExit(1)
+
+    # Retenção: mantém os `keep` mais recentes
+    backups = sorted(f for f in os.listdir(out_dir)
+                     if f.startswith(prefix) and f.endswith(suffix))
+    for old in backups[:-keep] if keep > 0 else []:
+        os.remove(os.path.join(out_dir, old))
+        click.echo(f"Backup antigo removido: {old}")

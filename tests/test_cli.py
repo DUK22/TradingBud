@@ -79,3 +79,28 @@ def test_import_mail_desligado_sem_config(app, monkeypatch):
     monkeypatch.delenv("IMPORT_IMAP_HOST", raising=False)
     res = app.test_cli_runner().invoke(args=["import-mail"])
     assert "desligado" in res.output
+
+
+def test_backup_db_sqlite(app, tmp_path, monkeypatch):
+    """Backup de SQLite cria arquivo e respeita a retenção."""
+    import os
+    import sqlite3
+
+    # Usa um SQLite em arquivo (o TestConfig usa :memory:)
+    src = tmp_path / "src.db"
+    con = sqlite3.connect(src)
+    con.execute("CREATE TABLE t (x int)")
+    con.execute("INSERT INTO t VALUES (42)")
+    con.commit()
+    con.close()
+    monkeypatch.setitem(app.config, "SQLALCHEMY_DATABASE_URI", f"sqlite:///{src}")
+
+    out = tmp_path / "bk"
+    res = app.test_cli_runner().invoke(args=["backup-db", "--out", str(out), "--keep", "2"])
+    assert "Backup SQLite criado" in res.output
+    files = os.listdir(out)
+    assert len(files) == 1
+    # Conteúdo íntegro
+    chk = sqlite3.connect(out / files[0])
+    assert chk.execute("SELECT x FROM t").fetchone() == (42,)
+    chk.close()

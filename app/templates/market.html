@@ -2,45 +2,26 @@
 {% block title %}Mercado · IR Traders{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack.min.css">
 <style>
-  .grid-stack { margin: 0 -6px; }
-  .grid-stack-item-content { inset: 0; }
-  .widget-card { display:flex; flex-direction:column; height:100%; overflow:hidden;
+  .tv-card { display:flex; flex-direction:column; overflow:hidden;
     border-radius:12px; border:1px solid rgba(255,255,255,.1); background:rgba(15,23,42,.7); }
-  .widget-head { display:flex; align-items:center; justify-content:space-between; gap:.4rem;
-    padding:.4rem .7rem; font-size:.8rem; font-weight:500; color:#cbd5e1; border-bottom:1px solid rgba(255,255,255,.06); }
-  .widget-body { flex:1 1 auto; min-height:0; }
-  .drag-handle { display:flex; align-items:center; gap:.45rem; color:#94a3b8; min-width:0; }
-  .drag-handle span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .grid-stack.editing .drag-handle { cursor:move; color:#34d399; }
-  .grid-stack.editing .widget-card { outline:1px dashed rgba(52,211,153,.55); }
-  .rm-btn { display:none; }
-  .grid-stack.editing .rm-btn { display:inline-flex; }
+  .tv-head { padding:.45rem .8rem; font-size:.8rem; font-weight:500; color:#cbd5e1;
+    border-bottom:1px solid rgba(255,255,255,.06); }
+  .tv-body { flex:1 1 auto; min-height:0; }
 </style>
 {% endblock %}
 
 {% block content %}
-
 <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
   <div>
     <h1 class="text-2xl font-semibold tracking-tight text-white">Mercado</h1>
-    <p class="mt-1 text-sm text-slate-500">Edite o layout (arraste, redimensione, adicione/remova) — salvo na sua conta.</p>
+    <p class="mt-1 text-sm text-slate-500">Gráfico, contexto e calculadoras — conectados à sua carteira e ao diário.</p>
   </div>
-  <div class="flex flex-wrap items-center gap-2">
-    <span id="saved-tag" class="hidden text-xs text-emerald-300">salvo ✓</span>
-    <div class="relative hidden lg:block">
-      <button id="btn-add" class="hidden rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.04]">+ Bloco</button>
-      <div id="add-menu" class="absolute right-0 z-40 mt-1 hidden w-56 rounded-lg border border-white/10 bg-slate-900 p-1 shadow-xl"></div>
-    </div>
-    <button id="btn-reset" class="hidden rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.04]">Restaurar</button>
-    <button id="btn-edit" class="hidden rounded-lg border border-emerald-400/40 px-3 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-400/10 lg:inline-flex">✎ Editar layout</button>
-    <form method="get" class="flex gap-2">
-      <input name="symbol" value="{{ symbol }}" placeholder="PETR4…"
-             class="w-32 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm uppercase text-slate-100 placeholder:text-slate-600 focus:border-emerald-400/60 focus:outline-none sm:w-44">
-      <button class="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">Abrir</button>
-    </form>
-  </div>
+  <form method="get" class="flex gap-2">
+    <input name="symbol" value="{{ symbol }}" placeholder="PETR4, EWZ…"
+           class="w-36 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm uppercase text-slate-100 placeholder:text-slate-600 focus:border-cyan-400/60 focus:outline-none sm:w-48">
+    <button class="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">Abrir</button>
+  </form>
 </div>
 
 <!-- Atalhos -->
@@ -57,7 +38,7 @@
 <div class="mb-4 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] p-4" id="pos-panel"
      data-asset="{{ pos_atual.asset }}" data-avg="{{ pos_atual.avg_price }}" data-qty="{{ pos_atual.qty }}">
   <div class="text-xs uppercase tracking-wider text-emerald-300/80">Sua posição em {{ pos_atual.asset }}</div>
-  <div class="mt-1 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
+  <div class="mt-1 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm tabular-nums">
     <span class="text-slate-400">Preço médio <strong class="text-white">{{ pos_atual.avg_price|brl }}</strong></span>
     <span class="text-slate-400">Quantidade <strong class="text-white">{{ pos_atual.qty|num(0) }}</strong></span>
     <span class="text-slate-400">Custo <strong class="text-white">{{ pos_atual.market_cost|brl }}</strong></span>
@@ -66,7 +47,25 @@
 </div>
 {% endif %}
 
-<div class="mb-4 rounded-xl border border-white/10 bg-slate-900/70 p-4">
+<!-- Gráfico + coluna de contexto -->
+<div class="grid gap-4 xl:grid-cols-3">
+  <div class="tv-card xl:col-span-2" style="height: 560px">
+    <div class="tv-body" id="tv-chart"></div>
+  </div>
+  <div class="flex flex-col gap-4">
+    <div class="tv-card" style="height: 360px">
+      <div class="tv-head">Análise técnica</div>
+      <div class="tv-body" id="tv-tech"></div>
+    </div>
+    <div class="tv-card" style="height: 184px">
+      <div class="tv-head">Informações do ativo</div>
+      <div class="tv-body" id="tv-info"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Diário do ativo -->
+<div class="mt-4 rounded-xl border border-white/10 bg-slate-900/70 p-4">
   <div class="flex items-center justify-between">
     <div class="text-sm font-medium text-white">Diário · {{ asset_atual }}</div>
     <a href="{{ url_for('journal.new_note', asset=asset_atual) }}" class="text-xs text-emerald-300 hover:underline">+ nova anotação</a>
@@ -83,11 +82,10 @@
   {% endif %}
 </div>
 
-<div class="grid-stack"></div>
-
-<!-- Modelo das calculadoras (clonado para dentro do bloco "calc") -->
-<template id="tpl-calc">
-  <div class="grid gap-4 overflow-auto p-4 lg:grid-cols-3">
+<!-- Calculadoras -->
+<div class="mt-4 rounded-xl border border-white/10 bg-slate-900/70 p-4">
+  <div class="text-sm font-medium text-white">Calculadoras do trader</div>
+  <div class="mt-3 grid gap-4 lg:grid-cols-3">
     <div class="rounded-lg border border-white/10 bg-white/[0.02] p-3">
       <div class="text-sm font-medium text-slate-200">Quantos contratos</div>
       <div class="mt-2 space-y-2 text-sm">
@@ -95,7 +93,7 @@
         <input id="ps-risk" type="number" value="200" placeholder="Risco (R$)" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
         <input id="ps-stop" type="number" value="150" placeholder="Stop (pontos)" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
       </div>
-      <div id="ps-out" class="mt-2 rounded-lg bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-300"></div>
+      <div id="ps-out" class="mt-2 rounded-lg bg-emerald-400/10 px-3 py-2 text-sm font-semibold tabular-nums text-emerald-300"></div>
     </div>
     <div class="rounded-lg border border-white/10 bg-white/[0.02] p-3">
       <div class="text-sm font-medium text-slate-200">Pontos → reais</div>
@@ -104,7 +102,7 @@
         <input id="pt-points" type="number" value="100" placeholder="Pontos" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
         <input id="pt-qty" type="number" value="1" placeholder="Contratos" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
       </div>
-      <div id="pt-out" class="mt-2 rounded-lg bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-300"></div>
+      <div id="pt-out" class="mt-2 rounded-lg bg-emerald-400/10 px-3 py-2 text-sm font-semibold tabular-nums text-emerald-300"></div>
     </div>
     <div class="rounded-lg border border-white/10 bg-white/[0.02] p-3">
       <div class="text-sm font-medium text-slate-200">IR na venda</div>
@@ -114,10 +112,22 @@
         <input id="ir-qty" type="number" value="{{ pos_atual.qty if pos_atual else 100 }}" placeholder="Quantidade" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5">
         <select id="ir-type" class="w-full rounded-lg border border-white/10 bg-slate-950 px-2 py-1.5"><option value="0.15">Swing 15%</option><option value="0.20">Day 20%</option></select>
       </div>
-      <div id="ir-out" class="mt-2 rounded-lg bg-amber-400/10 px-3 py-2 text-sm font-semibold text-amber-300"></div>
+      <div id="ir-out" class="mt-2 rounded-lg bg-amber-400/10 px-3 py-2 text-sm font-semibold tabular-nums text-amber-300"></div>
     </div>
   </div>
-</template>
+</div>
+
+<!-- Calendário + notícias -->
+<div class="mt-4 grid gap-4 lg:grid-cols-2">
+  <div class="tv-card" style="height: 420px">
+    <div class="tv-head">Calendário econômico (BR/EUA)</div>
+    <div class="tv-body" id="tv-calendar"></div>
+  </div>
+  <div class="tv-card" style="height: 420px">
+    <div class="tv-head">Notícias · {{ asset_atual }}</div>
+    <div class="tv-body" id="tv-news"></div>
+  </div>
+</div>
 
 <p class="mt-4 text-xs leading-relaxed text-slate-600">
   Cotações e dados pelo TradingView (alguns em tempo real, outros com atraso conforme a bolsa).
@@ -126,45 +136,15 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack-all.js"></script>
 <script>
   const SYMBOL = {{ symbol|tojson }};
-  const CSRF = {{ csrf_token()|tojson }};
-  const SAVED = {{ saved_layout|safe }};
   const $ = id => document.getElementById(id);
   const brl = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
-  const PV = {{ point_values|tojson }};   // valores de ponto (definido cedo: usado pelas calculadoras)
+  const PV = {{ point_values|tojson }};
 
-  // Catálogo de blocos disponíveis
-  const CATALOG = {
-    chart:   {title:'Gráfico', w:8, h:8, tv:'advanced-chart', cfg:s=>({autosize:true,symbol:s,interval:'D',timezone:'America/Sao_Paulo',theme:'dark',style:'1',locale:'br',hide_side_toolbar:false,allow_symbol_change:true,withdateranges:true,details:true,studies:['Volume@tv-basicstudies']})},
-    mini:    {title:'Mini gráfico', w:4, h:4, tv:'mini-symbol-overview', cfg:s=>({symbol:s,width:'100%',height:'100%',locale:'br',dateRange:'12M',colorTheme:'dark',isTransparent:true,autosize:true})},
-    tech:    {title:'Análise técnica', w:4, h:5, tv:'technical-analysis', cfg:s=>({interval:'1D',width:'100%',height:'100%',isTransparent:true,symbol:s,showIntervalTabs:true,locale:'br',colorTheme:'dark'})},
-    info:    {title:'Informações', w:4, h:3, tv:'symbol-info', cfg:s=>({symbol:s,width:'100%',locale:'br',colorTheme:'dark',isTransparent:true})},
-    quote:   {title:'Cotação', w:4, h:3, tv:'single-quote', cfg:s=>({symbol:s,width:'100%',colorTheme:'dark',isTransparent:true,locale:'br'})},
-    calc:    {title:'Calculadoras do trader', w:12, h:5, custom:true},
-    calendar:{title:'Calendário econômico', w:6, h:6, tv:'events', cfg:()=>({colorTheme:'dark',isTransparent:true,width:'100%',height:'100%',locale:'br',importanceFilter:'0,1',countryFilter:'br,us'})},
-    news:    {title:'Notícias', w:6, h:6, tv:'timeline', cfg:s=>({feedMode:'symbol',symbol:s,isTransparent:true,displayMode:'regular',width:'100%',height:'100%',colorTheme:'dark',locale:'br'})},
-    overview:{title:'Panorama', w:6, h:7, tv:'market-overview', cfg:()=>({colorTheme:'dark',dateRange:'1D',showChart:true,locale:'br',isTransparent:true,showSymbolLogo:true,width:'100%',height:'100%',tabs:[{title:'Índices',symbols:[{s:'BMFBOVESPA:IBOV',d:'Ibovespa'},{s:'FX_IDC:USDBRL',d:'Dólar'},{s:'TVC:DXY',d:'DXY'}]},{title:'Ações',symbols:[{s:'BMFBOVESPA:PETR4'},{s:'BMFBOVESPA:VALE3'},{s:'BMFBOVESPA:ITUB4'},{s:'BMFBOVESPA:BBAS3'},{s:'BMFBOVESPA:B3SA3'}]}]})},
-    hotlists:{title:'Maiores altas e baixas', w:6, h:7, tv:'hotlists', cfg:()=>({colorTheme:'dark',dateRange:'1D',exchange:'BMFBOVESPA',showChart:false,locale:'br',isTransparent:true,width:'100%',height:'100%'})},
-    screener:{title:'Rastreador de ações', w:12, h:8, tv:'screener', cfg:()=>({width:'100%',height:'100%',defaultColumn:'overview',defaultScreen:'most_capitalized',market:'brazil',showToolbar:true,colorTheme:'dark',locale:'br',isTransparent:true})},
-    forex:   {title:'Moedas (forex)', w:6, h:6, tv:'forex-cross-rates', cfg:()=>({width:'100%',height:'100%',currencies:['EUR','USD','BRL','JPY','GBP'],isTransparent:true,colorTheme:'dark',locale:'br'})},
-    crypto:  {title:'Cripto', w:6, h:7, tv:'crypto-mkt-screener', cfg:()=>({width:'100%',height:'100%',defaultColumn:'overview',screener_type:'crypto_mkt',displayCurrency:'USD',colorTheme:'dark',locale:'br',isTransparent:true})},
-  };
-  const DEFAULT_LAYOUT = [
-    {id:'chart',type:'chart',x:0,y:0,w:8,h:8},
-    {id:'tech',type:'tech',x:8,y:0,w:4,h:5},
-    {id:'info',type:'info',x:8,y:5,w:4,h:3},
-    {id:'calc',type:'calc',x:0,y:8,w:12,h:5},
-    {id:'calendar',type:'calendar',x:0,y:13,w:6,h:6},
-    {id:'news',type:'news',x:6,y:13,w:6,h:6},
-    {id:'overview',type:'overview',x:0,y:19,w:6,h:7},
-    {id:'hotlists',type:'hotlists',x:6,y:19,w:6,h:7},
-  ];
-  const GRIP = '<svg class="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><circle cx="8" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg>';
-  const XICON = '<svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
-
-  function renderTV(body, name, configObj) {
+  // ---- Widgets TradingView (layout fixo) ----
+  function renderTV(elId, name, cfg) {
+    const body = $(elId); if (!body) return;
     body.innerHTML = '';
     const c = document.createElement('div');
     c.className = 'tradingview-widget-container'; c.style.height = '100%'; c.style.width = '100%';
@@ -172,109 +152,21 @@
     w.className = 'tradingview-widget-container__widget'; w.style.height = '100%'; w.style.width = '100%';
     const s = document.createElement('script'); s.async = true;
     s.src = `https://s3.tradingview.com/external-embedding/embed-widget-${name}.js`;
-    s.text = JSON.stringify(configObj);
+    s.text = JSON.stringify(cfg);
     c.appendChild(w); c.appendChild(s); body.appendChild(c);
   }
-  function renderBody(el, type) {
-    const def = CATALOG[type]; if (!def) return;
-    const body = el.querySelector('.widget-body');
-    if (def.custom && type === 'calc') {
-      body.innerHTML = ''; body.appendChild($('tpl-calc').content.cloneNode(true)); initCalc();
-    } else if (def.tv) {
-      renderTV(body, def.tv, def.cfg(SYMBOL));
-    }
-  }
-
-  const grid = GridStack.init({
-    column: 12, cellHeight: 70, margin: 6, float: true, staticGrid: true,
-    handle: '.drag-handle', resizable: { handles: 'e,se,s,sw,w' },
-    columnOpts: { breakpointForWindow: true, breakpoints: [{ w: 700, c: 1 }] },
-  });
-
-  function addItem(node) {
-    const def = CATALOG[node.type]; if (!def) return;
-    const wrap = document.createElement('div');
-    wrap.className = 'grid-stack-item';
-    wrap.setAttribute('gs-id', node.id);
-    ['x','y','w','h'].forEach(k => wrap.setAttribute('gs-'+k, node[k]));
-    wrap.innerHTML = `<div class="grid-stack-item-content"><div class="widget-card" data-type="${node.type}">
-      <div class="widget-head"><span class="drag-handle">${GRIP}<span>${def.title}</span></span>
-      <button class="rm-btn text-slate-500 hover:text-red-300" title="Remover bloco">${XICON}</button></div>
-      <div class="widget-body"></div></div></div>`;
-    grid.el.appendChild(wrap);
-    grid.makeWidget(wrap);
-    try { renderBody(wrap, node.type); } catch (err) { console.error('Bloco', node.type, err); }
-    wrap.querySelector('.rm-btn').addEventListener('click', () => {
-      grid.removeWidget(wrap); saveLayout(); buildAddMenu();
-    });
-  }
-
-  function currentLayout() {
-    return grid.getGridItems().map(el => {
-      const n = el.gridstackNode || {};
-      const card = el.querySelector('.widget-card');
-      return { id: n.id, type: card ? card.dataset.type : '', x: n.x, y: n.y, w: n.w, h: n.h };
-    });
-  }
-  let saveTimer = null;
-  function saveLayout() {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      fetch("{{ url_for('main.market_layout') }}", {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-        body: JSON.stringify(currentLayout()),
-      }).then(() => { const t = $('saved-tag'); t.classList.remove('hidden');
-        clearTimeout(window._svt); window._svt = setTimeout(() => t.classList.add('hidden'), 1500); });
-    }, 700);
-  }
-
-  // Monta o layout inicial (salvo ou padrão)
-  const layout = (Array.isArray(SAVED) && SAVED.length) ? SAVED : DEFAULT_LAYOUT;
-  grid.batchUpdate();
-  layout.forEach(addItem);
-  grid.commit();
-  grid.on('resizestop', (e, el) => {
-    const card = el.querySelector('.widget-card'); if (card) renderBody(el, card.dataset.type);
-  });
-  grid.on('change', () => { if (!grid.opts.staticGrid && window.innerWidth >= 700) saveLayout(); });
-
-  // Menu de adicionar blocos
-  function buildAddMenu() {
-    const present = new Set(grid.getGridItems().map(el => el.querySelector('.widget-card')?.dataset.type));
-    const menu = $('add-menu'); menu.innerHTML = '';
-    const avail = Object.keys(CATALOG).filter(t => !present.has(t));
-    if (!avail.length) { menu.innerHTML = '<div class="px-3 py-2 text-xs text-slate-500">Todos os blocos já estão na tela.</div>'; return; }
-    avail.forEach(t => {
-      const b = document.createElement('button');
-      b.className = 'block w-full rounded-md px-3 py-2 text-left text-sm text-slate-300 hover:bg-white/[0.06]';
-      b.textContent = CATALOG[t].title;
-      b.addEventListener('click', () => {
-        addItem({ id: t, type: t, x: 0, y: 0, w: CATALOG[t].w, h: CATALOG[t].h });
-        menu.classList.add('hidden'); saveLayout(); buildAddMenu();
-      });
-      menu.appendChild(b);
-    });
-  }
-
-  // Botões de edição
-  let editing = false;
-  const gridEl = document.querySelector('.grid-stack');
-  $('btn-edit').addEventListener('click', () => {
-    editing = !editing; grid.setStatic(!editing);
-    gridEl.classList.toggle('editing', editing);
-    $('btn-edit').textContent = editing ? '✓ Concluir' : '✎ Editar layout';
-    $('btn-reset').classList.toggle('hidden', !editing);
-    $('btn-add').classList.toggle('hidden', !editing);
-    if (!editing) $('add-menu').classList.add('hidden');
-  });
-  $('btn-add').addEventListener('click', () => { buildAddMenu(); $('add-menu').classList.toggle('hidden'); });
-  $('btn-reset').addEventListener('click', () => {
-    grid.removeAll(); grid.batchUpdate(); DEFAULT_LAYOUT.forEach(addItem); grid.commit();
-    saveLayout(); buildAddMenu();
-  });
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('#add-menu') && !e.target.closest('#btn-add')) $('add-menu').classList.add('hidden');
-  });
+  renderTV('tv-chart', 'advanced-chart', {autosize:true, symbol:SYMBOL, interval:'D',
+    timezone:'America/Sao_Paulo', theme:'dark', style:'1', locale:'br',
+    hide_side_toolbar:false, allow_symbol_change:true, withdateranges:true,
+    details:true, studies:['Volume@tv-basicstudies']});
+  renderTV('tv-tech', 'technical-analysis', {interval:'1D', width:'100%', height:'100%',
+    isTransparent:true, symbol:SYMBOL, showIntervalTabs:true, locale:'br', colorTheme:'dark'});
+  renderTV('tv-info', 'symbol-info', {symbol:SYMBOL, width:'100%', locale:'br',
+    colorTheme:'dark', isTransparent:true});
+  renderTV('tv-calendar', 'events', {colorTheme:'dark', isTransparent:true, width:'100%',
+    height:'100%', locale:'br', importanceFilter:'0,1', countryFilter:'br,us'});
+  renderTV('tv-news', 'timeline', {feedMode:'symbol', symbol:SYMBOL, isTransparent:true,
+    displayMode:'regular', width:'100%', height:'100%', colorTheme:'dark', locale:'br'});
 
   // ---- Calculadoras ----
   function fillContracts(sel){ sel.innerHTML=''; Object.keys(PV).forEach(k=>{ const o=document.createElement('option');
@@ -285,15 +177,11 @@
     $('pt-out').textContent = `${brl(pts*pv*q)} (${q}× contrato)`; }
   function calcIR(){ const avg=parseFloat($('ir-avg').value)||0, sell=parseFloat($('ir-sell').value)||0, q=parseFloat($('ir-qty').value)||0, a=parseFloat($('ir-type').value)||0.15;
     const lucro=(sell-avg)*q, imp=lucro>0?lucro*a:0; $('ir-out').innerHTML=`Resultado ${brl(lucro)} · Imposto ${brl(imp)}`; }
-  function initCalc(){
-    if (!$('ps-contract')) return;
-    fillContracts($('ps-contract')); fillContracts($('pt-contract'));
-    ['ps-contract','ps-risk','ps-stop'].forEach(id=>$(id).oninput=calcPS);
-    ['pt-contract','pt-points','pt-qty'].forEach(id=>$(id).oninput=calcPT);
-    ['ir-avg','ir-sell','ir-qty','ir-type'].forEach(id=>$(id).oninput=calcIR);
-    calcPS(); calcPT(); calcIR();
-    if (window._livePrice && $('ir-sell') && !$('ir-sell').value) { $('ir-sell').value = window._livePrice; calcIR(); }
-  }
+  fillContracts($('ps-contract')); fillContracts($('pt-contract'));
+  ['ps-contract','ps-risk','ps-stop'].forEach(id=>$(id).oninput=calcPS);
+  ['pt-contract','pt-points','pt-qty'].forEach(id=>$(id).oninput=calcPT);
+  ['ir-avg','ir-sell','ir-qty','ir-type'].forEach(id=>$(id).oninput=calcIR);
+  calcPS(); calcPT(); calcIR();
 
   // ---- Cotação ao vivo da posição atual ----
   const posPanel = $('pos-panel');
@@ -303,7 +191,6 @@
       .then(r => r.json()).then(p => {
         const price = p[a], el = $('pos-live');
         if (price == null) { el.textContent = 'cotação ao vivo indisponível'; return; }
-        window._livePrice = price;
         const pnl = (price - avg) * qty, pct = avg ? ((price/avg - 1)*100).toFixed(1) : '0.0';
         el.innerHTML = `Atual <strong class="text-white">${brl(price)}</strong> · `
           + `Resultado <strong class="${pnl>=0?'text-emerald-300':'text-red-300'}">${brl(pnl)} (${pct}%)</strong>`;

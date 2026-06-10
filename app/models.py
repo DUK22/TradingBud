@@ -36,7 +36,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     cpf = db.Column(EncryptedString())  # criptografado em repouso (LGPD)
     email_verified = db.Column(db.Boolean, default=False, nullable=False)
-    layout_mercado = db.Column(db.Text)  # JSON do layout da página Mercado
+    layout_mercado = db.Column(db.Text)  # legado: layout antigo da página Mercado (não usado)
     strategy = db.Column(db.Text)        # legado: estratégia única (migrada p/ StrategyProfile)
     active_strategy_id = db.Column(db.Integer)  # id da StrategyProfile selecionada
     created_at = db.Column(db.DateTime, default=utcnow)
