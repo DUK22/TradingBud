@@ -144,8 +144,9 @@
   <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-800">
     <div class="h-full rounded-full {{ 'bg-amber-300' if excedeu else 'bg-emerald-400' }}" style="width: {{ [pct, 100]|min }}%"></div>
   </div>
-  <div class="mt-2 text-xs text-slate-500">
-    {% if excedeu %}Limite ultrapassado: as vendas do mês passam a ser tributadas.
+  <div class="mt-2 text-xs {{ 'text-amber-300' if (excedeu or pct >= 80) else 'text-slate-500' }}">
+    {% if excedeu %}Limite ultrapassado: TODO o lucro de ações à vista do mês passa a ser tributado (15%).
+    {% elif pct >= 80 %}⚠ Atenção: faltam só {{ (isencao.limite - isencao.usado)|brl }} para perder a isenção do mês — uma venda acima disso tributa o mês inteiro.
     {% else %}Saldo até o limite: {{ (isencao.limite - isencao.usado)|brl }}.{% endif %}
   </div>
 </div>

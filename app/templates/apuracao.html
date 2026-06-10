@@ -41,7 +41,7 @@
     <tbody class="divide-y divide-white/10">
       {% for m in months %}
       <tr class="hover:bg-white/[0.03]">
-        <td class="px-3 py-3 font-medium text-white">{{ m.month|mes }}/{{ m.year }}</td>
+        <td class="px-3 py-3 font-medium"><a href="{{ url_for('main.apuracao_mes', year=m.year, month=m.month) }}" class="text-white hover:text-cyan-300">{{ m.month|mes }}/{{ m.year }} <span class="text-[10px] text-slate-600">→</span></a></td>
         <td class="px-3 py-3 text-right {{ 'text-emerald-300' if m.day_result>=0 else 'text-red-300' }}">{{ m.day_result|brl }}</td>
         <td class="px-3 py-3 text-right {{ 'text-emerald-300' if m.swing_result>=0 else 'text-red-300' }}">{{ m.swing_result|brl }}{% if m.fii_result %}<span class="block text-[10px] text-slate-500">FII {{ m.fii_result|brl }}</span>{% endif %}</td>
         <td class="px-3 py-3 text-right text-slate-500">{{ m.exempt_result|brl }}</td>

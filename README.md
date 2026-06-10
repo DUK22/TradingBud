@@ -36,6 +36,9 @@ de prejuízos e alíquotas corretas, e mostra tudo num dashboard.
    por usuário, **verificação de e-mail** e **reset de senha** por token
    (e-mails via SMTP configurável; sem SMTP, o link sai no log — modo dev).
 6. **Cotações** — brapi.dev (com `BRAPI_TOKEN`) com fallback Yahoo Finance.
+7. **Automação** — upload de notas **em lote** com deduplicação por número,
+   drill-down da apuração (mês → operação por operação) e lembrete mensal de
+   DARF por e-mail (`flask darf-remind`, agendável via cron).
 
 ## Stack
 

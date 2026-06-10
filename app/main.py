@@ -251,45 +251,98 @@ def market_layout():
 # --------------------------------------------------------------------------- #
 # Upload / OCR
 # --------------------------------------------------------------------------- #
+def _is_duplicate_note(parsed) -> bool:
+    """Dedupe: mesma corretora + mesmo número de nota + mesma data do pregão.
+    Sem número de nota, cai para (data, nº de negócios) como heurística fraca —
+    nesse caso só bloqueia se o financeiro bater também."""
+    if parsed.note_number:
+        return db.session.query(BrokerageNote.id).filter_by(
+            user_id=current_user.id, broker=parsed.broker,
+            note_number=parsed.note_number, trade_date=parsed.trade_date,
+        ).first() is not None
+    if not parsed.trade_date:
+        return False
+    same_day = BrokerageNote.query.filter_by(
+        user_id=current_user.id, broker=parsed.broker,
+        trade_date=parsed.trade_date, provisional=False).all()
+    return any(len(n.trades) == len(parsed.trades)
+               and _d_eq(n.net_value, parsed.net_value) for n in same_day)
+
+
+def _d_eq(a, b) -> bool:
+    return Decimal(str(a or 0)) == Decimal(str(b or 0))
+
+
+def _import_one_pdf(file) -> tuple[str, str]:
+    """Salva, valida e importa um PDF. Retorna (status, mensagem) onde status
+    é 'ok' | 'dup' | 'err'."""
+    fname = secure_filename(file.filename) or "nota.pdf"
+    stamped = f"{current_user.id}_{datetime.now(UTC):%Y%m%d%H%M%S%f}_{fname}"
+    path = os.path.join(current_app.config["UPLOAD_FOLDER"], stamped)
+    file.save(path)
+
+    # Defesa em profundidade: além da extensão, exige assinatura real de PDF.
+    with open(path, "rb") as fh:
+        head = fh.read(5)
+    if head != b"%PDF-":
+        os.remove(path)
+        return "err", f"{fname}: não é um PDF válido."
+
+    try:
+        parsed = ocr.parse_pdf(path)
+    except Exception as e:  # noqa: BLE001
+        return "err", f"{fname}: falha ao ler ({e})."
+
+    if _is_duplicate_note(parsed):
+        os.remove(path)
+        num = parsed.note_number or "sem número"
+        return "dup", f"{fname}: nota já importada (nº {num})."
+
+    importar_parsed_note(current_user, parsed, filename=stamped, source="OCR")
+    msg = f"{fname}: {len(parsed.trades)} negócio(s)."
+    if parsed.warnings:
+        msg += " Atenção: " + " ".join(parsed.warnings)
+    return "ok", msg
+
+
 @main_bp.route("/upload", methods=["GET", "POST"])
 @login_required
 def upload():
     if request.method == "POST":
-        file = request.files.get("nota")
-        if not file or file.filename == "":
-            flash("Selecione um arquivo PDF.", "error")
-            return redirect(request.url)
-        if not _allowed(file.filename):
-            flash("Formato inválido. Envie um PDF.", "error")
+        files = [f for f in request.files.getlist("nota") if f and f.filename]
+        if not files:
+            flash("Selecione um ou mais arquivos PDF.", "error")
             return redirect(request.url)
 
-        fname = secure_filename(file.filename) or "nota.pdf"
-        stamped = f"{current_user.id}_{datetime.now(UTC):%Y%m%d%H%M%S}_{fname}"
-        path = os.path.join(current_app.config["UPLOAD_FOLDER"], stamped)
-        file.save(path)
+        results = {"ok": [], "dup": [], "err": []}
+        for f in files:
+            if not _allowed(f.filename):
+                results["err"].append(f"{f.filename}: formato inválido (envie PDF).")
+                continue
+            status, msg = _import_one_pdf(f)
+            results[status].append(msg)
 
-        # Defesa em profundidade: além da extensão, exige assinatura real de PDF.
-        with open(path, "rb") as fh:
-            head = fh.read(5)
-        if head != b"%PDF-":
-            os.remove(path)
-            flash("O arquivo não é um PDF válido.", "error")
+        if len(files) == 1:
+            # Comportamento clássico: vai direto para a nota importada
+            if results["ok"]:
+                note = (BrokerageNote.query.filter_by(user_id=current_user.id)
+                        .order_by(BrokerageNote.id.desc()).first())
+                flash("Nota importada: " + results["ok"][0],
+                      "warning" if "Atenção" in results["ok"][0] else "success")
+                return redirect(url_for("main.note_detail", note_id=note.id))
+            flash((results["dup"] + results["err"])[0],
+                  "warning" if results["dup"] else "error")
             return redirect(request.url)
 
-        try:
-            parsed = ocr.parse_pdf(path)
-        except Exception as e:  # noqa: BLE001
-            flash(f"Falha ao ler o PDF: {e}", "error")
-            return redirect(request.url)
-
-        note = importar_parsed_note(current_user, parsed, filename=stamped, source="OCR")
-        msg = f"Nota importada: {len(parsed.trades)} negócio(s) reconhecido(s)."
-        if parsed.warnings:
-            msg += " Atenção: " + " ".join(parsed.warnings)
-            flash(msg, "warning")
-        else:
-            flash(msg, "success")
-        return redirect(url_for("main.note_detail", note_id=note.id))
+        # Lote: resumo consolidado
+        if results["ok"]:
+            flash(f"{len(results['ok'])} nota(s) importada(s) com sucesso.", "success")
+        if results["dup"]:
+            flash(f"{len(results['dup'])} duplicada(s) ignorada(s): "
+                  + " ".join(results["dup"]), "warning")
+        if results["err"]:
+            flash(f"{len(results['err'])} com erro: " + " ".join(results["err"]), "error")
+        return redirect(url_for("main.notes") if results["ok"] else request.url)
 
     return render_template("upload.html")
 
@@ -446,6 +499,26 @@ def apuracao():
         "apuracao.html", months=months, result=result,
         darf_codigo=tax_engine.DARF_CODIGO, darf_min=tax_engine.DARF_MINIMO,
     )
+
+
+@main_bp.route("/apuracao/<int:year>/<int:month>")
+@login_required
+def apuracao_mes(year, month):
+    """Drill-down: todas as operações que compõem a apuração do mês."""
+    result = _compute_user()
+    m = result.month(year, month)
+    if not m:
+        abort(404)
+    in_month = lambda o: (o.trade_date.year, o.trade_date.month) == (year, month)  # noqa: E731
+    day_ops = sorted([r for r in result.day_results if in_month(r)],
+                     key=lambda r: (r.trade_date, r.asset))
+    swing_ops = sorted([sale for sale in result.swing_sales if in_month(sale)],
+                       key=lambda sale: (sale.trade_date, sale.asset))
+    month_notes = [n for n in _user_notes()
+                   if (n.trade_date.year, n.trade_date.month) == (year, month)]
+    return render_template("apuracao_mes.html", m=m, day_ops=day_ops,
+                           swing_ops=swing_ops, month_notes=month_notes,
+                           darf_min=tax_engine.DARF_MINIMO)
 
 
 @main_bp.route("/apuracao/<int:year>/<int:month>/darf.pdf")

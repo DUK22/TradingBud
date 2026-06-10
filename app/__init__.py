@@ -134,6 +134,10 @@ def create_app(config_class=Config):
     app.register_blueprint(main_bp)
     app.register_blueprint(journal_bp)
 
+    # Comandos CLI (flask darf-remind — agendar via cron em produção)
+    from .cli import cli_bp
+    app.register_blueprint(cli_bp)
+
     # Filtros Jinja (formatação pt-BR)
     register_filters(app)
 

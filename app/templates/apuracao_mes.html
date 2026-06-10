@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Apuração {{ m.month|mes }}/{{ m.year }} · IR Traders{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <a href="{{ url_for('main.apuracao') }}" class="text-xs text-slate-500 hover:text-slate-300">← Apuração mensal</a>
+    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-white">{{ m.month|mes }} de {{ m.year }}</h1>
+    <p class="mt-1 text-sm text-slate-500">Tudo que compõe a base tributável deste mês — auditável operação por operação.</p>
+  </div>
+  <a href="{{ url_for('main.darf_pdf_download', year=m.year, month=m.month) }}"
+     class="rounded-lg border border-emerald-400/40 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-400/10">Baixar DARF (PDF)</a>
+</div>
+
+<div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Day trade</div>
+    <div class="mt-1 text-lg font-semibold tabular-nums {{ 'text-emerald-300' if m.day_result>=0 else 'text-red-300' }}">{{ m.day_result|brl }}</div>
+    <div class="mt-0.5 text-[11px] text-slate-500">base {{ m.day_taxable_base|brl }}</div>
+  </div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Swing</div>
+    <div class="mt-1 text-lg font-semibold tabular-nums {{ 'text-emerald-300' if m.swing_result>=0 else 'text-red-300' }}">{{ m.swing_result|brl }}</div>
+    <div class="mt-0.5 text-[11px] text-slate-500">base {{ m.swing_taxable_base|brl }}</div>
+  </div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">FII</div>
+    <div class="mt-1 text-lg font-semibold tabular-nums {{ 'text-emerald-300' if m.fii_result>=0 else 'text-red-300' }}">{{ m.fii_result|brl }}</div>
+    <div class="mt-0.5 text-[11px] text-slate-500">base {{ m.fii_taxable_base|brl }}</div>
+  </div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">Isento (20k)</div>
+    <div class="mt-1 text-lg font-semibold tabular-nums text-slate-200">{{ m.exempt_result|brl }}</div>
+    <div class="mt-0.5 text-[11px] text-slate-500">vendas {{ m.equity_swing_gross|brl }}</div>
+  </div>
+  <div class="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">IRRF usado</div>
+    <div class="mt-1 text-lg font-semibold tabular-nums text-slate-200">{{ (m.irrf_day_used + m.irrf_swing_used)|brl }}</div>
+    <div class="mt-0.5 text-[11px] text-slate-500">retido {{ (m.irrf_day + m.irrf_swing)|brl }}</div>
+  </div>
+  <div class="rounded-lg border border-amber-400/25 bg-white/[0.03] p-3">
+    <div class="text-[11px] uppercase tracking-wider text-slate-500">DARF</div>
+    <div class="mt-1 text-lg font-semibold tabular-nums text-amber-300">{{ m.darf|brl }}</div>
+    {% if m.darf_below_min %}<div class="mt-0.5 text-[11px] text-amber-400">&lt; {{ darf_min|brl }} — acumula</div>
+    {% elif m.darf_carried_in %}<div class="mt-0.5 text-[11px] text-slate-500">inclui {{ m.darf_carried_in|brl }} acum.</div>{% endif %}
+  </div>
+</div>
+
+<div class="grid gap-6 xl:grid-cols-2">
+  <section class="rounded-xl border border-white/10 bg-slate-900/70 shadow-sm">
+    <div class="border-b border-white/10 px-4 py-3">
+      <h2 class="text-sm font-semibold text-white">Day trades <span class="ml-1 rounded-full border border-white/10 px-2 py-0.5 text-[11px] tabular-nums text-slate-500">{{ day_ops|length }}</span></h2>
+      <p class="text-xs text-slate-500">Compra e venda do mesmo ativo no mesmo dia (custos rateados)</p>
+    </div>
+    {% if day_ops %}
+    <div class="overflow-x-auto">
+      <table class="w-full whitespace-nowrap text-sm tabular-nums">
+        <thead class="text-left text-[11px] uppercase tracking-wider text-slate-500">
+          <tr><th class="px-4 py-2">Data</th><th class="px-4 py-2">Ativo</th><th class="px-4 py-2 text-right">Qtd</th><th class="px-4 py-2 text-right">PM compra</th><th class="px-4 py-2 text-right">PM venda</th><th class="px-4 py-2 text-right">Custos</th><th class="px-4 py-2 text-right">Resultado</th></tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          {% for r in day_ops %}
+          <tr class="hover:bg-white/[0.02]">
+            <td class="px-4 py-2 text-slate-400">{{ r.trade_date.strftime("%d/%m") }}</td>
+            <td class="px-4 py-2 font-medium text-white">{{ r.asset }}</td>
+            <td class="px-4 py-2 text-right text-slate-300">{{ r.qty|num(0) }}</td>
+            <td class="px-4 py-2 text-right text-slate-400">{{ r.avg_buy|brl if r.avg_buy else '—' }}</td>
+            <td class="px-4 py-2 text-right text-slate-400">{{ r.avg_sell|brl if r.avg_sell else '—' }}</td>
+            <td class="px-4 py-2 text-right text-slate-500">{{ r.costs|brl }}</td>
+            <td class="px-4 py-2 text-right font-semibold {{ 'text-emerald-300' if r.net_result>=0 else 'text-red-300' }}">{{ r.net_result|brl }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}<p class="px-4 py-6 text-sm text-slate-500">Nenhum day trade no mês.</p>{% endif %}
+  </section>
+
+  <section class="rounded-xl border border-white/10 bg-slate-900/70 shadow-sm">
+    <div class="border-b border-white/10 px-4 py-3">
+      <h2 class="text-sm font-semibold text-white">Vendas de swing <span class="ml-1 rounded-full border border-white/10 px-2 py-0.5 text-[11px] tabular-nums text-slate-500">{{ swing_ops|length }}</span></h2>
+      <p class="text-xs text-slate-500">Resultado = venda líquida de taxas − preço médio × quantidade</p>
+    </div>
+    {% if swing_ops %}
+    <div class="overflow-x-auto">
+      <table class="w-full whitespace-nowrap text-sm tabular-nums">
+        <thead class="text-left text-[11px] uppercase tracking-wider text-slate-500">
+          <tr><th class="px-4 py-2">Data</th><th class="px-4 py-2">Ativo</th><th class="px-4 py-2 text-right">Qtd</th><th class="px-4 py-2 text-right">PM</th><th class="px-4 py-2 text-right">Venda</th><th class="px-4 py-2 text-right">Bruto</th><th class="px-4 py-2 text-right">Resultado</th></tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          {% for sale in swing_ops %}
+          <tr class="hover:bg-white/[0.02]">
+            <td class="px-4 py-2 text-slate-400">{{ sale.trade_date.strftime("%d/%m") }}</td>
+            <td class="px-4 py-2 font-medium text-white">{{ sale.asset }}</td>
+            <td class="px-4 py-2 text-right text-slate-300">{{ sale.qty|num(0) }}</td>
+            <td class="px-4 py-2 text-right text-slate-400">{{ sale.avg_price|brl if sale.avg_price else '—' }}</td>
+            <td class="px-4 py-2 text-right text-slate-400">{{ sale.sell_price|brl if sale.sell_price else '—' }}</td>
+            <td class="px-4 py-2 text-right text-slate-500">{{ sale.gross|brl }}</td>
+            <td class="px-4 py-2 text-right font-semibold {{ 'text-emerald-300' if sale.result>=0 else 'text-red-300' }}">{{ sale.result|brl }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}<p class="px-4 py-6 text-sm text-slate-500">Nenhuma venda de swing no mês.</p>{% endif %}
+  </section>
+</div>
+
+<section class="mt-6 rounded-xl border border-white/10 bg-slate-900/70 p-4 shadow-sm">
+  <h2 class="text-sm font-semibold text-white">Notas do mês <span class="ml-1 rounded-full border border-white/10 px-2 py-0.5 text-[11px] tabular-nums text-slate-500">{{ month_notes|length }}</span></h2>
+  <div class="mt-3 flex flex-wrap gap-2">
+    {% for n in month_notes %}
+    <a href="{{ url_for('main.note_detail', note_id=n.id) }}"
+       class="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs tabular-nums text-slate-300 hover:bg-white/[0.06]">
+      {{ n.trade_date.strftime("%d/%m") }} · {{ n.broker }}{{ ' · nº ' + n.note_number if n.note_number }}
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

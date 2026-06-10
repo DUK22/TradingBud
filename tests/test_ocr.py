@@ -77,3 +77,37 @@ def test_detecta_e_parseia_bmf():
 def test_layout_nao_reconhecido_gera_warning():
     note = ocr.parse_note("documento qualquer sem linhas de negocio\nBTG\n")
     assert note.warnings  # lista não vazia
+
+
+def test_upload_em_lote_com_dedupe(client, user, monkeypatch, tmp_path):
+    """Dois PDFs iguais no mesmo lote => 1 importado, 1 ignorado como duplicado."""
+    import io
+    from datetime import date
+    from decimal import Decimal
+
+    from app.models import BrokerageNote
+    from app.services import ocr
+    from app.services.ocr import ParsedNote, ParsedTrade
+
+    def fake_parse(path):
+        return ParsedNote(
+            broker="BTG", note_number="12345", trade_date=date(2026, 5, 5),
+            trades=[ParsedTrade(asset="PETR4", market="VISTA", side="C",
+                                quantity=Decimal("100"), price=Decimal("38"),
+                                gross_value=Decimal("3800"))])
+
+    monkeypatch.setattr(ocr, "parse_pdf", fake_parse)
+    client.post("/login", data={"email": "t@t.com", "password": "password"})
+
+    pdf = b"%PDF-1.4 fake"
+    r = client.post("/upload", data={
+        "nota": [(io.BytesIO(pdf), "a.pdf"), (io.BytesIO(pdf), "b.pdf")],
+    }, content_type="multipart/form-data", follow_redirects=True)
+    assert r.status_code == 200
+    assert BrokerageNote.query.filter_by(user_id=user.id).count() == 1
+    assert "duplicada" in r.get_data(as_text=True)
+
+    # Reenviar a mesma nota depois também é bloqueado
+    r = client.post("/upload", data={"nota": (io.BytesIO(pdf), "c.pdf")},
+                    content_type="multipart/form-data", follow_redirects=True)
+    assert BrokerageNote.query.filter_by(user_id=user.id).count() == 1

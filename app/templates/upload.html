@@ -2,15 +2,16 @@
 {% block title %}Importar nota · IR Traders{% endblock %}
 {% block content %}
 <h1 class="text-2xl font-semibold mb-1">Importar nota de corretagem</h1>
-<p class="text-slate-500 text-sm mb-6">Envie o PDF da nota (padrão SINACOR — BTG e demais corretoras). O sistema lê e extrai os negócios e custos.</p>
+<p class="text-slate-500 text-sm mb-6">Envie um ou vários PDFs de uma vez (padrão SINACOR — BTG e demais corretoras). Notas repetidas são detectadas pelo número e ignoradas automaticamente — pode mandar a pasta inteira sem medo.</p>
 
 <div class="grid lg:grid-cols-3 gap-6">
   <form method="post" enctype="multipart/form-data" class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label class="block border-2 border-dashed border-slate-700 rounded-xl p-10 text-center cursor-pointer hover:border-brand transition">
-      <input type="file" name="nota" accept="application/pdf" class="hidden" onchange="document.getElementById('fn').textContent = this.files[0]?.name || ''">
-      <div class="text-slate-400">Clique para selecionar o PDF</div>
-      <div class="text-xs text-slate-600 mt-1">apenas .pdf, até 25 MB</div>
+      <input type="file" name="nota" accept="application/pdf" multiple class="hidden"
+             onchange="document.getElementById('fn').textContent = this.files.length > 1 ? this.files.length + ' arquivos selecionados' : (this.files[0]?.name || '')">
+      <div class="text-slate-400">Clique para selecionar um ou vários PDFs</div>
+      <div class="text-xs text-slate-600 mt-1">apenas .pdf, até 25 MB no total por envio</div>
       <div id="fn" class="text-brand text-sm mt-3"></div>
     </label>
     <button class="mt-5 w-full bg-brand hover:bg-brand-dark text-slate-950 font-semibold rounded-lg py-2.5 transition">Ler e importar</button>
