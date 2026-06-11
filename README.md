@@ -232,13 +232,12 @@ BTG** — ajustamos as expressões com base no texto extraído (salvo em
 
 ## Roadmap
 
-- Relatório anual consolidado para a DIRPF.
 - Ativar OAuth2 da B3 e sincronização automática (cliente já preparado).
 - OCR de notas escaneadas (imagem) via Tesseract.
 - Regras específicas para opções (exercício) e aluguel de ações (BTC).
 
-Já entregue: DARF em PDF, dashboard com métricas (win rate, melhor/pior),
-sparklines e barra de isenção de R$20k.
+Já entregue: relatório anual consolidado para a DIRPF, DARF em PDF, dashboard
+com métricas (win rate, melhor/pior), sparklines e barra de isenção de R$20k.
 
 ## Acesso rápido
 
