@@ -156,8 +156,8 @@
 <div class="mt-6 rounded-xl border border-emerald-400/30 bg-emerald-400/[0.06] p-5">
   <div class="font-medium text-white">📸 Analisar print do Profit</div>
   <p class="mt-1 text-xs text-slate-400">Envie um print da sua tela (gráfico, book, posição) e a IA avalia conforme a estratégia ativa. No celular, dá pra usar a foto da galeria.</p>
-  <label for="shot" class="mt-3 flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-white/15 bg-slate-950/60 px-4 py-6 text-sm text-slate-400 hover:border-emerald-400/40">
-    <span id="shot-label">Toque para escolher um print (PNG/JPG)…</span>
+  <label for="shot" id="shot-zone" class="mt-3 flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/15 bg-slate-950/60 px-4 py-6 text-sm text-slate-400 transition hover:border-emerald-400/40">
+    <span id="shot-label">Cole com <kbd class="rounded border border-white/15 bg-white/[0.06] px-1.5 py-0.5 text-[11px] font-semibold text-slate-300">Ctrl+V</kbd>, arraste, ou toque para escolher (PNG/JPG)</span>
     <input id="shot" type="file" accept="image/*" class="hidden">
   </label>
   <img id="shot-preview" class="mt-3 hidden max-h-72 rounded-lg border border-white/10" alt="prévia">
@@ -274,13 +274,50 @@
   const shot = $('shot');
   if (shot) {
     let file = null;
-    shot.addEventListener('change', () => {
-      file = shot.files[0] || null;
-      $('btn-shot').disabled = !file;
-      if (file) {
-        $('shot-label').textContent = file.name;
-        const img = $('shot-preview'); img.src = URL.createObjectURL(file); img.classList.remove('hidden');
+    const zone = $('shot-zone');
+
+    function setShotFile(f, sourceLabel) {
+      if (!f || !f.type.startsWith('image/')) return;
+      file = f;
+      $('btn-shot').disabled = false;
+      $('shot-label').textContent = sourceLabel || f.name || 'imagem colada';
+      const img = $('shot-preview');
+      img.src = URL.createObjectURL(f);
+      img.classList.remove('hidden');
+      zone.classList.add('border-emerald-400/60');
+      setTimeout(() => zone.classList.remove('border-emerald-400/60'), 800);
+    }
+
+    shot.addEventListener('change', () => setShotFile(shot.files[0] || null));
+
+    // Ctrl+V em qualquer lugar da página (fora de campos de texto longos)
+    document.addEventListener('paste', (e) => {
+      const items = (e.clipboardData || {}).items || [];
+      for (const it of items) {
+        if (it.type && it.type.startsWith('image/')) {
+          const f = it.getAsFile();
+          if (f) {
+            e.preventDefault();
+            setShotFile(f, 'print colado (Ctrl+V) ✓');
+            zone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          return;
+        }
       }
+    });
+
+    // Arrastar e soltar na área
+    ['dragover', 'dragenter'].forEach(ev => zone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      zone.classList.add('border-emerald-400/60');
+    }));
+    ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      zone.classList.remove('border-emerald-400/60');
+    }));
+    zone.addEventListener('drop', (e) => {
+      const f = (e.dataTransfer.files || [])[0];
+      if (f) setShotFile(f, (f.name || 'imagem') + ' (arrastado) ✓');
     });
     $('btn-shot').addEventListener('click', async () => {
       if (!file) return;
